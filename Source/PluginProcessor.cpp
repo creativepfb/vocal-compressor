@@ -14,6 +14,8 @@ VocalCompressorAudioProcessor::VocalCompressorAudioProcessor()
     driveParam     = apvts.getRawParameterValue("drive");
     makeupParam    = apvts.getRawParameterValue("makeup");
     mixParam       = apvts.getRawParameterValue("mix");
+    hpfParam       = apvts.getRawParameterValue("hpf");
+    stage2Param    = apvts.getRawParameterValue("stage2");
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout
@@ -39,7 +41,7 @@ VocalCompressorAudioProcessor::createParameterLayout()
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "drive", "Saturation Drive",
-        juce::NormalisableRange<float>(1.0f, 5.0f, 0.01f), 1.5f));
+        juce::NormalisableRange<float>(1.0f, 8.0f, 0.01f), 1.5f));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "makeup", "Makeup Gain",
@@ -48,6 +50,13 @@ VocalCompressorAudioProcessor::createParameterLayout()
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "mix", "Mix",
         juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 100.0f, "%"));
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "hpf", "Detector HPF (Vocal Mode)", false));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "stage2", "Stage 2 (Aggressive)",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 0.0f, "%"));
 
     return { params.begin(), params.end() };
 }
@@ -68,10 +77,15 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 {
     juce::ScopedNoDenormals noDenormals;
 
+    bool hpfOn = hpfParam->load() > 0.5f;
+    float stage2Amount = stage2Param->load();
+
     compressorL.setParameters(thresholdParam->load(), ratioParam->load(), attackParam->load(),
-                               releaseParam->load(), driveParam->load(), makeupParam->load());
+                               releaseParam->load(), driveParam->load(), makeupParam->load(),
+                               hpfOn, stage2Amount);
     compressorR.setParameters(thresholdParam->load(), ratioParam->load(), attackParam->load(),
-                               releaseParam->load(), driveParam->load(), makeupParam->load());
+                               releaseParam->load(), driveParam->load(), makeupParam->load(),
+                               hpfOn, stage2Amount);
 
     auto* left  = buffer.getWritePointer(0);
     auto* right = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : nullptr;

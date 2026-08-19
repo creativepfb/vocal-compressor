@@ -47,6 +47,8 @@ private:
     std::atomic<float>* driveParam     = nullptr;
     std::atomic<float>* makeupParam    = nullptr;
     std::atomic<float>* mixParam       = nullptr;
+    std::atomic<float>* hpfParam       = nullptr;
+    std::atomic<float>* stage2Param    = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocalCompressorAudioProcessor)
 };
