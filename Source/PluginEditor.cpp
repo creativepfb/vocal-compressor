@@ -64,7 +64,10 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     for (int i = 0; i < numKnobs; ++i)
         updateValueLabel(i);
 
-    setSize(1200, 631);
+    // A imagem é 1200x631, mas isso é grande demais pra janela de um plugin -
+    // desenhamos ela reduzida (70%), mantendo a mesma proporção; o layout
+    // (frações) se adapta sozinho ao tamanho real da janela.
+    setSize(840, 442);
 }
 
 VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
