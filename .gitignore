@@ -1,4 +1,6 @@
 JUCE/
 build/
 dist/
+mac_dist/
+mac_dist_plugin/
 *.zip
