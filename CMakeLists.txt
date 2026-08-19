@@ -33,6 +33,12 @@ target_sources(VocalCompressor
         Source/PluginEditor.cpp
 )
 
+juce_add_binary_data(VocalCompressorAssets
+    SOURCES
+        Source/Resources/faceplate-1200px.png
+        Source/Resources/knob-pequeno-png.png
+)
+
 target_compile_definitions(VocalCompressor
     PUBLIC
         JUCE_WEB_BROWSER=0
@@ -44,6 +50,7 @@ target_link_libraries(VocalCompressor
     PRIVATE
         juce::juce_audio_utils
         juce::juce_dsp
+        VocalCompressorAssets
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

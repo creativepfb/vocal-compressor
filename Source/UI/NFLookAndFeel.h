@@ -24,78 +24,31 @@ public:
         setColour(juce::Label::textColourId, kTextDim);
     }
 
+    /** Imagem única do knob (com o próprio anel roxo + indicador verde
+        desenhados nela) - giramos ela inteira conforme o valor, técnica
+        padrão de skin de plugin. Precisa ser setada antes do primeiro paint. */
+    juce::Image knobImage;
+
     void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
                            float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
                            juce::Slider&) override
     {
-        auto bounds = juce::Rectangle<float>((float) x, (float) y, (float) width, (float) height).reduced(4.0f);
-        auto radius = juce::jmin(bounds.getWidth(), bounds.getHeight()) / 2.0f;
-        auto centre = bounds.getCentre();
+        if (!knobImage.isValid())
+            return;
+
+        auto bounds = juce::Rectangle<float>((float) x, (float) y, (float) width, (float) height);
         auto angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
-        auto knobRadius = radius * 0.66f;
 
-        // Sombra suave por trás do knob
-        g.setColour(juce::Colours::black.withAlpha(0.55f));
-        g.fillEllipse(centre.x - knobRadius + 1.5f, centre.y - knobRadius + 3.5f, knobRadius * 2.0f, knobRadius * 2.0f);
+        float diameter = juce::jmin(bounds.getWidth(), bounds.getHeight());
+        float imgSize = (float) knobImage.getWidth();
+        float scale = diameter / imgSize;
 
-        // Marcas de escala ao redor do arco
-        for (int i = 0; i <= 10; ++i)
-        {
-            float t = (float) i / 10.0f;
-            float tickAngle = rotaryStartAngle + t * (rotaryEndAngle - rotaryStartAngle);
-            auto p1 = centre.getPointOnCircumference(radius + 2.0f, tickAngle);
-            auto p2 = centre.getPointOnCircumference(radius + 5.0f, tickAngle);
-            g.setColour(juce::Colour(0xff3a3a42));
-            g.drawLine({ p1, p2 }, 1.2f);
-        }
+        auto transform = juce::AffineTransform::rotation(angle, imgSize * 0.5f, imgSize * 0.5f)
+                              .scaled(scale)
+                              .translated(bounds.getCentreX() - diameter * 0.5f,
+                                          bounds.getCentreY() - diameter * 0.5f);
 
-        // Trilho de fundo do arco
-        juce::Path track;
-        track.addCentredArc(centre.x, centre.y, radius, radius, 0.0f, rotaryStartAngle, rotaryEndAngle, true);
-        g.setColour(juce::Colour(0xff26262c));
-        g.strokePath(track, juce::PathStrokeType(3.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-
-        // Glow por trás do arco de valor
-        juce::Path valueArc;
-        valueArc.addCentredArc(centre.x, centre.y, radius, radius, 0.0f, rotaryStartAngle, angle, true);
-        g.setColour(kPurple.withAlpha(0.35f));
-        g.strokePath(valueArc, juce::PathStrokeType(6.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setColour(kPurple);
-        g.strokePath(valueArc, juce::PathStrokeType(3.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-
-        // Corpo do knob: gradiente metálico (luz vindo de cima-esquerda)
-        juce::ColourGradient bodyGrad(juce::Colour(0xff4a4a52), centre.x - knobRadius * 0.6f, centre.y - knobRadius * 0.7f,
-                                       juce::Colour(0xff0e0e10), centre.x + knobRadius * 0.7f, centre.y + knobRadius * 0.8f, false);
-        bodyGrad.addColour(0.55, juce::Colour(0xff2a2a30));
-        g.setGradientFill(bodyGrad);
-        g.fillEllipse(centre.x - knobRadius, centre.y - knobRadius, knobRadius * 2.0f, knobRadius * 2.0f);
-
-        // Bezel: anel de brilho fino na borda superior-esquerda
-        juce::Path bezel;
-        bezel.addArc(centre.x - knobRadius, centre.y - knobRadius, knobRadius * 2.0f, knobRadius * 2.0f,
-                     juce::MathConstants<float>::pi * 1.05f, juce::MathConstants<float>::pi * 1.95f, true);
-        g.setColour(juce::Colour(0xff6a6a74).withAlpha(0.6f));
-        g.strokePath(bezel, juce::PathStrokeType(1.2f));
-
-        g.setColour(juce::Colour(0xff020203));
-        g.drawEllipse(centre.x - knobRadius, centre.y - knobRadius, knobRadius * 2.0f, knobRadius * 2.0f, 1.3f);
-
-        // Ponteiro (verde neon) com glow
-        juce::Path pointer;
-        float pointerLength = knobRadius * 0.8f;
-        float pointerThickness = 2.4f;
-        pointer.addRoundedRectangle(-pointerThickness * 0.5f, -knobRadius * 0.9f, pointerThickness, pointerLength, 1.2f);
-        pointer.applyTransform(juce::AffineTransform::rotation(angle).translated(centre));
-        g.setColour(kGreen.withAlpha(0.4f));
-        g.strokePath(pointer, juce::PathStrokeType(3.0f));
-        g.setColour(kGreen);
-        g.fillPath(pointer);
-
-        auto tip = centre.getPointOnCircumference(knobRadius * 0.92f, angle);
-        g.setColour(kGreen.withAlpha(0.30f));
-        g.fillEllipse(tip.x - 5.0f, tip.y - 5.0f, 10.0f, 10.0f);
-        g.setColour(kGreen);
-        g.fillEllipse(tip.x - 2.2f, tip.y - 2.2f, 4.4f, 4.4f);
+        g.drawImageTransformed(knobImage, transform, false);
     }
 
     void drawToggleButton(juce::Graphics& g, juce::ToggleButton& button,

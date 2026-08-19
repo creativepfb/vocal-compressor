@@ -1,0 +1,27 @@
+VOCAL COMPRESSOR V2 — plugin macOS (sem standalone)
+======================================================
+
+Universal: roda em Mac Intel e Apple Silicon (M1/M2/M3/M4).
+
+Novidades da V2:
+- VOCAL HPF: filtro passa-altas no detector (~120 Hz), pra graves/
+  plosivas não disparar a compressão à toa.
+- STAGE 2: segundo estágio de compressão, mais rápido/agressivo,
+  em série. 0% = desligado, suba pra ficar mais "esmagado".
+- DRIVE: agora com impacto real (1 a 8).
+
+COMO INSTALAR
+--------------
+VST3 (Ableton, Reaper, Studio One...):
+  Copie "Vocal Compressor.vst3" para
+  ~/Library/Audio/Plug-Ins/VST3/
+
+AU (Logic Pro, GarageBand):
+  Copie "Vocal Compressor.component" para
+  ~/Library/Audio/Plug-Ins/Components/
+
+Depois abra o DAW e force um rescan de plugins. Na primeira vez o
+macOS pode pedir confirmação de segurança (Gatekeeper) — é normal,
+plugin sem assinatura Apple ainda (etapa futura).
+
+Insira "Vocal Compressor" numa trilha de voz e teste.

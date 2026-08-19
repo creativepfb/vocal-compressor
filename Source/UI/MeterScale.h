@@ -11,8 +11,8 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        g.setFont(juce::Font(juce::FontOptions(9.0f)));
-        g.setColour(NFLookAndFeel::kTextDim);
+        g.setFont(juce::Font(juce::FontOptions(9.0f, juce::Font::bold)));
+        g.setColour(NFLookAndFeel::kGreen);
 
         auto h = (float) getHeight();
         for (float db : ticks)

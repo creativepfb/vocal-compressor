@@ -1,37 +1,35 @@
 #include "PluginEditor.h"
+#include <BinaryData.h>
+
+namespace
+{
+    // Retângulo em frações (0..1) da imagem de fundo, convertido pra pixels
+    // reais conforme o tamanho atual do editor.
+    juce::Rectangle<int> fracRect(int w, int h, float x0, float y0, float x1, float y1)
+    {
+        return { juce::roundToInt(x0 * (float) w), juce::roundToInt(y0 * (float) h),
+                 juce::roundToInt((x1 - x0) * (float) w), juce::roundToInt((y1 - y0) * (float) h) };
+    }
+}
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     VocalCompressorAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p), grMeter(p),
       inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb)
 {
+    faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate1200px_png, BinaryData::faceplate1200px_pngSize);
+    nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::knobpequenopng_png, BinaryData::knobpequenopng_pngSize);
+
     setLookAndFeel(&nfLookAndFeel);
 
-    setupKnob(thresholdSlider, thresholdLabel, "Threshold");
-    setupKnob(ratioSlider, ratioLabel, "Ratio");
-    setupKnob(attackSlider, attackLabel, "Attack");
-    setupKnob(releaseSlider, releaseLabel, "Release");
-    setupKnob(driveSlider, driveLabel, "Drive");
-    setupKnob(makeupSlider, makeupLabel, "Makeup");
-    setupKnob(mixSlider, mixLabel, "Mix");
+    for (auto* s : { &thresholdSlider, &ratioSlider, &attackSlider, &releaseSlider,
+                      &driveSlider, &makeupSlider, &mixSlider })
+        setupKnob(*s);
 
     addAndMakeVisible(hpfButton);
-    addAndMakeVisible(sidechainCaption);
-    sidechainCaption.setJustificationType(juce::Justification::centred);
-    sidechainCaption.setColour(juce::Label::textColourId, NFLookAndFeel::kTextDim);
-    sidechainCaption.setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
-
     addAndMakeVisible(grMeter);
     addAndMakeVisible(inputMeter);
     addAndMakeVisible(outputMeter);
-
-    for (auto* caption : { &inputCaption, &outputCaption, &grCaption })
-    {
-        addAndMakeVisible(*caption);
-        caption->setJustificationType(juce::Justification::centred);
-        caption->setColour(juce::Label::textColourId, NFLookAndFeel::kTextDim);
-        caption->setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
-    }
 
     for (auto* scale : { &inputScale, &outputScale, &grScale })
         addAndMakeVisible(*scale);
@@ -46,7 +44,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     mixAttach       = std::make_unique<SliderAttachment>(apvts, "mix", mixSlider);
     hpfAttach       = std::make_unique<ButtonAttachment>(apvts, "hpf", hpfButton);
 
-    setSize(760, 320);
+    setSize(1200, 631);
 }
 
 VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
@@ -54,141 +52,53 @@ VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
     setLookAndFeel(nullptr);
 }
 
-void VocalCompressorAudioProcessorEditor::setupKnob(juce::Slider& slider, juce::Label& label,
-                                                       const juce::String& text)
+void VocalCompressorAudioProcessorEditor::setupKnob(juce::Slider& slider)
 {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 74, 18);
-    slider.setColour(juce::Slider::textBoxTextColourId, NFLookAndFeel::kTextLight);
+    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 100, 36);
+    slider.setColour(juce::Slider::textBoxTextColourId, NFLookAndFeel::kGreen);
+    slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
+    slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
     addAndMakeVisible(slider);
-
-    label.setText(text, juce::dontSendNotification);
-    label.setJustificationType(juce::Justification::centred);
-    label.setColour(juce::Label::textColourId, NFLookAndFeel::kTextDim);
-    label.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
-    addAndMakeVisible(label);
 }
 
 void VocalCompressorAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    // Fundo com leve vinheta radial (mais claro no centro, mais escuro nas bordas)
-    juce::ColourGradient bg(juce::Colour(0xff141417), getWidth() * 0.5f, getHeight() * 0.5f,
-                             NFLookAndFeel::kBackground, 0.0f, 0.0f, true);
-    g.setGradientFill(bg);
-    g.fillAll();
-
-    // --- Painéis das seções (dão profundidade, evitam visual "chapado") ---
-    auto contentArea = getLocalBounds().withTrimmedTop(72).reduced(12);
-    contentArea.removeFromBottom(48 + 6);
-
-    auto drawPanel = [&g](juce::Rectangle<int> r)
-    {
-        auto rf = r.toFloat();
-        g.setColour(juce::Colours::black.withAlpha(0.35f));
-        g.fillRoundedRectangle(rf.translated(0.0f, 1.5f), 8.0f);
-        g.setColour(juce::Colour(0xff151518));
-        g.fillRoundedRectangle(rf, 8.0f);
-        g.setColour(juce::Colour(0xff28282e));
-        g.drawRoundedRectangle(rf.reduced(0.5f), 8.0f, 1.0f);
-    };
-
-    auto panels = contentArea;
-    drawPanel(panels.removeFromLeft(kInputColWidth));
-    panels.removeFromLeft(10);
-    drawPanel(panels.removeFromRight(kRightColWidth));
-    panels.removeFromRight(10);
-    drawPanel(panels);
-
-    // --- Barra de topo ---
-    auto topBar = getLocalBounds().removeFromTop(36);
-    g.setColour(NFLookAndFeel::kPanel);
-    g.fillRect(topBar);
-
-    // bolinhas de janela
-    auto dotsArea = topBar.reduced(12, 0).removeFromLeft(60);
-    juce::Colour dotColours[] { juce::Colour(0xffff5f57), juce::Colour(0xffffbd2e), juce::Colour(0xff28c840) };
-    for (int i = 0; i < 3; ++i)
-    {
-        auto d = juce::Rectangle<float>((float) dotsArea.getX() + i * 18.0f, (float) dotsArea.getCentreY() - 5.0f, 10.0f, 10.0f);
-        g.setColour(dotColours[i]);
-        g.fillEllipse(d);
-    }
-
-    // logo NF + título
-    auto textArea = topBar.withTrimmedLeft(90);
-    g.setFont(juce::Font(juce::FontOptions(20.0f, juce::Font::bold)));
-    g.setColour(NFLookAndFeel::kGreen);
-    auto nfWidth = 40;
-    g.drawFittedText("NF", textArea.removeFromLeft(nfWidth), juce::Justification::centredLeft, 1);
-
-    g.setFont(juce::Font(juce::FontOptions(16.0f, juce::Font::plain)));
-    g.setColour(NFLookAndFeel::kTextLight);
-    g.drawFittedText("Vocal Compressor", textArea, juce::Justification::centredLeft, 1);
-
-    // separador
-    g.setColour(juce::Colour(0xff2a2a30));
-    g.drawLine(0.0f, (float) topBar.getBottom(), (float) getWidth(), (float) topBar.getBottom(), 1.0f);
-
-    // --- Título central + tagline ---
-    auto centreArea = getLocalBounds().withTrimmedTop(topBar.getBottom() + 6).removeFromTop(30);
-    g.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
-    g.setColour(NFLookAndFeel::kTextDim);
-    g.drawFittedText("SMOOTH  *  CLEAR  *  CONTROL", centreArea, juce::Justification::centred, 1);
+    g.fillAll(juce::Colours::black);
+    if (faceplate.isValid())
+        g.drawImage(faceplate, getLocalBounds().toFloat());
 }
 
 void VocalCompressorAudioProcessorEditor::resized()
 {
-    auto area = getLocalBounds();
-    area.removeFromTop(36);  // barra de topo (desenhada no paint)
-    area.removeFromTop(36);  // tagline (desenhada no paint)
-    area = area.reduced(12);
+    const int w = getWidth();
+    const int h = getHeight();
 
-    // Coluna Input (esquerda): medidor + escala em dB
-    auto inputCol = area.removeFromLeft(kInputColWidth);
-    inputCaption.setBounds(inputCol.removeFromTop(16));
-    inputCol.removeFromBottom(20);
-    inputMeter.setBounds(inputCol.removeFromLeft(28));
-    inputCol.removeFromLeft(2);
-    inputScale.setBounds(inputCol);
-    area.removeFromLeft(10);
+    // --- Knobs: 7 colunas igualmente espaçadas sobre a imagem ---
+    constexpr float knobCentresX[7] = { 0.1852f, 0.2884f, 0.3915f, 0.4946f, 0.5978f, 0.7009f, 0.8041f };
+    constexpr float knobColHalfWidth = 0.052f;
+    constexpr float knobTop = 0.335f;
+    constexpr float knobBottom = 0.628f;
 
-    // Coluna Output + GR (direita), cada uma com sua escala
-    auto rightCol = area.removeFromRight(kRightColWidth);
-    auto outputCol = rightCol.removeFromLeft(54);
-    outputCaption.setBounds(outputCol.removeFromTop(16));
-    outputCol.removeFromBottom(20);
-    outputMeter.setBounds(outputCol.removeFromLeft(28));
-    outputCol.removeFromLeft(2);
-    outputScale.setBounds(outputCol);
+    juce::Slider* sliders[7] = { &thresholdSlider, &ratioSlider, &attackSlider,
+                                  &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
 
-    rightCol.removeFromLeft(8);
-    grCaption.setBounds(rightCol.removeFromTop(16));
-    rightCol.removeFromBottom(20);
-    grScale.setBounds(rightCol.removeFromLeft(20));
-    rightCol.removeFromLeft(2);
-    grMeter.setBounds(rightCol);
+    for (int i = 0; i < 7; ++i)
+        sliders[i]->setBounds(fracRect(w, h, knobCentresX[i] - knobColHalfWidth, knobTop,
+                                        knobCentresX[i] + knobColHalfWidth, knobBottom));
 
-    area.removeFromRight(10);
+    // --- Coluna INPUT (esquerda) ---
+    inputScale.setBounds(fracRect(w, h, 0.0350f, 0.2367f, 0.0507f, 0.5520f));
+    inputMeter.setBounds(fracRect(w, h, 0.0531f, 0.2367f, 0.0857f, 0.5520f));
 
-    // Área central: knobs em cima, HPF embaixo
-    auto hpfArea = area.removeFromBottom(48);
-    sidechainCaption.setBounds(hpfArea.removeFromTop(14).withSizeKeepingCentre(90, 14));
-    hpfButton.setBounds(hpfArea.withSizeKeepingCentre(90, 22));
+    // --- Coluna OUTPUT (direita) ---
+    outputScale.setBounds(fracRect(w, h, 0.8934f, 0.2367f, 0.9071f, 0.5520f));
+    outputMeter.setBounds(fracRect(w, h, 0.9096f, 0.2367f, 0.9421f, 0.5520f));
 
-    constexpr int numKnobs = 7;
-    int knobWidth = area.getWidth() / numKnobs;
+    // --- GR (abaixo do OUTPUT) ---
+    grMeter.setBounds(fracRect(w, h, 0.9096f, 0.6836f, 0.9421f, 0.8834f));
+    grScale.setBounds(fracRect(w, h, 0.9457f, 0.6836f, 0.9650f, 0.8834f));
 
-    juce::Slider* sliders[numKnobs] = { &thresholdSlider, &ratioSlider, &attackSlider,
-                                         &releaseSlider, &driveSlider,
-                                         &makeupSlider, &mixSlider };
-    juce::Label* labels[numKnobs] = { &thresholdLabel, &ratioLabel, &attackLabel,
-                                       &releaseLabel, &driveLabel,
-                                       &makeupLabel, &mixLabel };
-
-    for (int i = 0; i < numKnobs; ++i)
-    {
-        auto col = area.removeFromLeft(knobWidth);
-        labels[i]->setBounds(col.removeFromTop(20));
-        sliders[i]->setBounds(col.reduced(5));
-    }
+    // --- HPF: em cima da área "SIDECHAIN OFF/HPF" da imagem ---
+    hpfButton.setBounds(fracRect(w, h, 0.0362f, 0.8083f, 0.1291f, 0.8522f));
 }
