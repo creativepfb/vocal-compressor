@@ -1,0 +1,37 @@
+name: Build macOS
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Clone JUCE
+        run: git clone --depth 1 --branch master https://github.com/juce-framework/JUCE.git JUCE
+
+      - name: Configure
+        run: cmake -B build -G Xcode
+
+      - name: Build (Release)
+        run: cmake --build build --config Release
+
+      - name: Package artifacts
+        run: |
+          mkdir -p dist
+          cp -R "build/VocalCompressor_artefacts/Release/VST3/Vocal Compressor.vst3" dist/ || true
+          cp -R "build/VocalCompressor_artefacts/Release/AU/Vocal Compressor.component" dist/ || true
+          cp -R "build/VocalCompressor_artefacts/Release/Standalone/Vocal Compressor.app" dist/ || true
+          ls -la dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VocalCompressor-macOS
+          path: dist/
+          if-no-files-found: error
