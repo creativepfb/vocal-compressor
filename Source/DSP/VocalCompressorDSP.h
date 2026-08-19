@@ -3,11 +3,11 @@
 #include <cmath>
 
 /**
-    Compressor de voz com release adaptativo (program-dependent), saturação
-    e um segundo estágio opcional (mais rápido e agressivo, em série) pra
-    quem quer um caráter mais "esmagado". Detector pode passar por um
-    high-pass (modo VOCAL) pra não deixar graves/plosivas dispararem a
-    compressão à toa. Uma instância por canal de áudio.
+    Compressor de voz com release adaptativo (program-dependent) e
+    saturação com bastante impacto real no caráter/volume percebido.
+    Detector pode passar por um high-pass (modo VOCAL) pra não deixar
+    graves/plosivas dispararem a compressão à toa. Uma instância por
+    canal de áudio.
 */
 class VocalCompressorDSP
 {
@@ -26,16 +26,11 @@ public:
         slowReleaseCoef  = calcCoef(400.0f);
         transientCoef    = calcCoef(30.0f);
         hpfCoef          = onePoleCoef(120.0f);
-
-        stage2Envelope      = 0.0f;
-        stage2SmoothedGainDb = 0.0f;
-        stage2AttackCoef    = calcCoef(2.0f);
-        stage2ReleaseCoef   = calcCoef(60.0f);
     }
 
     void setParameters(float thresholdDbIn, float ratioIn, float attackMs,
                         float releaseCharacterPercent, float driveIn, float makeupDbIn,
-                        bool detectorHpfOnIn, float stage2AmountPercent)
+                        bool detectorHpfOnIn)
     {
         thresholdDb = thresholdDbIn;
         ratio = juce::jmax(1.0f, ratioIn);
@@ -44,7 +39,6 @@ public:
         driveAmount = juce::jmax(1.0f, driveIn);
         makeupGainLinear = dbToLinear(makeupDbIn);
         detectorHpfOn = detectorHpfOnIn;
-        stage2Amount = juce::jlimit(0.0f, 1.0f, stage2AmountPercent / 100.0f);
     }
 
     float processSample(float input)
@@ -60,38 +54,19 @@ public:
         float gainReductionDb = computeGainReduction(envelope, thresholdDb, ratio, kneeWidth);
         smoothedGainDb += (gainReductionDb - smoothedGainDb) * smoothingSpeed;
 
-        float stage1Out = input * dbToLinear(smoothedGainDb);
+        float compressedOut = input * dbToLinear(smoothedGainDb);
 
-        // --- Estágio 2 opcional: mais rápido, ratio maior, knee mais duro ---
-        float stage2Out = stage1Out;
-        if (stage2Amount > 0.0001f)
-        {
-            float rect2 = std::abs(stage1Out);
-            float coef2 = (rect2 > stage2Envelope) ? stage2AttackCoef : stage2ReleaseCoef;
-            stage2Envelope += (rect2 - stage2Envelope) * coef2;
-
-            float gr2Db = computeGainReduction(stage2Envelope, stage2ThresholdDb, stage2Ratio, stage2KneeWidth);
-            stage2SmoothedGainDb += (gr2Db - stage2SmoothedGainDb) * smoothingSpeed;
-
-            float compressed2 = stage1Out * dbToLinear(stage2SmoothedGainDb);
-            stage2Out = stage1Out + (compressed2 - stage1Out) * stage2Amount;
-        }
-        else
-        {
-            stage2SmoothedGainDb += (0.0f - stage2SmoothedGainDb) * smoothingSpeed;
-        }
-
-        // Saturação: normalização mais leve que antes, então o Drive
+        // Saturação: normalização mais leve que na V1, então o Drive
         // realmente muda o caráter/volume percebido, não só a distorção.
-        float driven = std::tanh(stage2Out * driveAmount);
+        float driven = std::tanh(compressedOut * driveAmount);
         float satNormalise = juce::jmax(0.35f, std::tanh(driveAmount));
         float output = driven / satNormalise;
 
         return output * makeupGainLinear;
     }
 
-    // Usado pelo medidor de GR na GUI (soma dos dois estágios)
-    float getLastGainReductionDb() const { return smoothedGainDb + stage2SmoothedGainDb; }
+    // Usado pelo medidor de GR na GUI
+    float getLastGainReductionDb() const { return smoothedGainDb; }
 
 private:
     float calcCoef(float timeMs) const
@@ -142,7 +117,6 @@ private:
 
     double fs = 44100.0;
 
-    // Estágio 1
     float envelope = 0.0f;
     float smoothedGainDb = 0.0f;
     float transientTracker = 0.0f;
@@ -159,16 +133,6 @@ private:
     bool detectorHpfOn = false;
     float hpfLowpassState = 0.0f;
     float hpfCoef = 0.0f;
-
-    // Estágio 2 (rápido/agressivo, opcional)
-    float stage2Envelope = 0.0f;
-    float stage2SmoothedGainDb = 0.0f;
-    float stage2AttackCoef = 0.0f;
-    float stage2ReleaseCoef = 0.0f;
-    float stage2Amount = 0.0f;
-    const float stage2ThresholdDb = -10.0f;
-    const float stage2Ratio = 10.0f;
-    const float stage2KneeWidth = 2.0f;
 
     // Suavização final do ganho antes de aplicar (evita zipper noise).
     static constexpr float smoothingSpeed = 0.35f;

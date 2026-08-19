@@ -11,7 +11,6 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     setupKnob(driveSlider, driveLabel, "Drive");
     setupKnob(makeupSlider, makeupLabel, "Makeup");
     setupKnob(mixSlider, mixLabel, "Mix");
-    setupKnob(stage2Slider, stage2Label, "Stage 2");
 
     addAndMakeVisible(hpfButton);
     addAndMakeVisible(grMeter);
@@ -24,10 +23,9 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     driveAttach     = std::make_unique<SliderAttachment>(apvts, "drive", driveSlider);
     makeupAttach    = std::make_unique<SliderAttachment>(apvts, "makeup", makeupSlider);
     mixAttach       = std::make_unique<SliderAttachment>(apvts, "mix", mixSlider);
-    stage2Attach    = std::make_unique<SliderAttachment>(apvts, "stage2", stage2Slider);
     hpfAttach       = std::make_unique<ButtonAttachment>(apvts, "hpf", hpfButton);
 
-    setSize(700, 280);
+    setSize(650, 280);
 }
 
 void VocalCompressorAudioProcessorEditor::setupKnob(juce::Slider& slider, juce::Label& label,
@@ -64,14 +62,14 @@ void VocalCompressorAudioProcessorEditor::resized()
     grMeter.setBounds(meterArea);
     area.removeFromRight(10);
 
-    constexpr int numKnobs = 8;
+    constexpr int numKnobs = 7;
     int knobWidth = area.getWidth() / numKnobs;
 
     juce::Slider* sliders[numKnobs] = { &thresholdSlider, &ratioSlider, &attackSlider,
-                                         &releaseSlider, &driveSlider, &stage2Slider,
+                                         &releaseSlider, &driveSlider,
                                          &makeupSlider, &mixSlider };
     juce::Label* labels[numKnobs] = { &thresholdLabel, &ratioLabel, &attackLabel,
-                                       &releaseLabel, &driveLabel, &stage2Label,
+                                       &releaseLabel, &driveLabel,
                                        &makeupLabel, &mixLabel };
 
     for (int i = 0; i < numKnobs; ++i)

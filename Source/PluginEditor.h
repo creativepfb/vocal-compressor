@@ -18,10 +18,10 @@ private:
     VocalCompressorAudioProcessor& audioProcessor;
 
     juce::Slider thresholdSlider, ratioSlider, attackSlider,
-                 releaseSlider, driveSlider, makeupSlider, mixSlider, stage2Slider;
+                 releaseSlider, driveSlider, makeupSlider, mixSlider;
 
     juce::Label thresholdLabel, ratioLabel, attackLabel,
-                releaseLabel, driveLabel, makeupLabel, mixLabel, stage2Label;
+                releaseLabel, driveLabel, makeupLabel, mixLabel;
 
     juce::ToggleButton hpfButton { "Vocal HPF" };
 
@@ -30,8 +30,7 @@ private:
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     std::unique_ptr<SliderAttachment> thresholdAttach, ratioAttach, attackAttach,
-                                       releaseAttach, driveAttach, makeupAttach, mixAttach,
-                                       stage2Attach;
+                                       releaseAttach, driveAttach, makeupAttach, mixAttach;
     std::unique_ptr<ButtonAttachment> hpfAttach;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocalCompressorAudioProcessorEditor)
