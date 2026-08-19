@@ -37,18 +37,36 @@ public:
             return;
 
         auto bounds = juce::Rectangle<float>((float) x, (float) y, (float) width, (float) height);
-        auto angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
 
-        float diameter = juce::jmin(bounds.getWidth(), bounds.getHeight());
+        // A imagem do knob já nasce "em repouso" apontando pra posição mínima
+        // (medido: o pontinho verde fica quase exatamente no ângulo padrão
+        // rotaryStartAngle do JUCE). Por isso giramos só o quanto falta a
+        // partir dali, não o ângulo absoluto.
+        auto rotationFromRest = sliderPos * (rotaryEndAngle - rotaryStartAngle);
+
+        float diameter = juce::jmin(bounds.getWidth(), bounds.getHeight()) * 0.96f;
         float imgSize = (float) knobImage.getWidth();
         float scale = diameter / imgSize;
 
-        auto transform = juce::AffineTransform::rotation(angle, imgSize * 0.5f, imgSize * 0.5f)
+        auto transform = juce::AffineTransform::rotation(rotationFromRest, imgSize * 0.5f, imgSize * 0.5f)
                               .scaled(scale)
                               .translated(bounds.getCentreX() - diameter * 0.5f,
                                           bounds.getCentreY() - diameter * 0.5f);
 
         g.drawImageTransformed(knobImage, transform, false);
+
+        // Arquinho de valor (roxo), crescendo ao redor do knob, na faixa das
+        // marcações de escala já impressas na imagem de fundo.
+        auto centre = bounds.getCentre();
+        auto arcRadius = diameter * 0.5f * 1.28f;
+        auto angle = rotaryStartAngle + rotationFromRest;
+
+        juce::Path valueArc;
+        valueArc.addCentredArc(centre.x, centre.y, arcRadius, arcRadius, 0.0f, rotaryStartAngle, angle, true);
+        g.setColour(kPurple.withAlpha(0.35f));
+        g.strokePath(valueArc, juce::PathStrokeType(5.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour(kPurple);
+        g.strokePath(valueArc, juce::PathStrokeType(2.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
     void drawToggleButton(juce::Graphics& g, juce::ToggleButton& button,

@@ -4,12 +4,28 @@
 namespace
 {
     // Retângulo em frações (0..1) da imagem de fundo, convertido pra pixels
-    // reais conforme o tamanho atual do editor.
+    // reais conforme o tamanho atual do editor. Frações medidas por pixel
+    // direto na imagem faceplate-1200px.png (1200x631).
     juce::Rectangle<int> fracRect(int w, int h, float x0, float y0, float x1, float y1)
     {
         return { juce::roundToInt(x0 * (float) w), juce::roundToInt(y0 * (float) h),
                  juce::roundToInt((x1 - x0) * (float) w), juce::roundToInt((y1 - y0) * (float) h) };
     }
+
+    juce::Rectangle<int> fracRectCentred(int w, int h, float cx, float cy, float width, float height)
+    {
+        return fracRect(w, h, cx - width * 0.5f, cy - height * 0.5f, cx + width * 0.5f, cy + height * 0.5f);
+    }
+
+    constexpr float knobCentresX[7] = { 0.1875f, 0.29125f, 0.397083f, 0.501667f, 0.605f, 0.708333f, 0.811667f };
+    constexpr float knobCentreY = 0.408083f;
+    constexpr float knobDiameter = 0.056667f;
+
+    constexpr float valueBoxTop = 0.573693f;
+    constexpr float valueBoxBottom = 0.630744f;
+    constexpr float valueBoxWidth = 0.075f;
+
+    constexpr int decimalPlaces[7] = { 1, 1, 1, 0, 2, 1, 0 };
 }
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
@@ -22,17 +38,15 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
 
     setLookAndFeel(&nfLookAndFeel);
 
-    for (auto* s : { &thresholdSlider, &ratioSlider, &attackSlider, &releaseSlider,
-                      &driveSlider, &makeupSlider, &mixSlider })
-        setupKnob(*s);
+    juce::Slider* sliders[numKnobs] = { &thresholdSlider, &ratioSlider, &attackSlider,
+                                         &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
+    for (int i = 0; i < numKnobs; ++i)
+        setupKnob(i, *sliders[i], decimalPlaces[i]);
 
     addAndMakeVisible(hpfButton);
     addAndMakeVisible(grMeter);
     addAndMakeVisible(inputMeter);
     addAndMakeVisible(outputMeter);
-
-    for (auto* scale : { &inputScale, &outputScale, &grScale })
-        addAndMakeVisible(*scale);
 
     auto& apvts = audioProcessor.apvts;
     thresholdAttach = std::make_unique<SliderAttachment>(apvts, "threshold", thresholdSlider);
@@ -44,6 +58,9 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     mixAttach       = std::make_unique<SliderAttachment>(apvts, "mix", mixSlider);
     hpfAttach       = std::make_unique<ButtonAttachment>(apvts, "hpf", hpfButton);
 
+    for (int i = 0; i < numKnobs; ++i)
+        updateValueLabel(i);
+
     setSize(1200, 631);
 }
 
@@ -52,14 +69,30 @@ VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
     setLookAndFeel(nullptr);
 }
 
-void VocalCompressorAudioProcessorEditor::setupKnob(juce::Slider& slider)
+void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& slider, int decimals)
 {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 100, 36);
-    slider.setColour(juce::Slider::textBoxTextColourId, NFLookAndFeel::kGreen);
-    slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
-    slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+    slider.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
     addAndMakeVisible(slider);
+
+    slider.onValueChange = [this, index] { updateValueLabel(index); };
+
+    auto& label = valueLabels[index];
+    label.setJustificationType(juce::Justification::centred);
+    label.setColour(juce::Label::textColourId, NFLookAndFeel::kGreen);
+    label.setFont(juce::Font(juce::FontOptions(15.0f, juce::Font::bold)));
+    label.setInterceptsMouseClicks(false, false);
+    addAndMakeVisible(label);
+
+    juce::ignoreUnused(decimals);
+}
+
+void VocalCompressorAudioProcessorEditor::updateValueLabel(int index)
+{
+    juce::Slider* sliders[numKnobs] = { &thresholdSlider, &ratioSlider, &attackSlider,
+                                         &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
+    valueLabels[index].setText(juce::String(sliders[index]->getValue(), decimalPlaces[index]),
+                                juce::dontSendNotification);
 }
 
 void VocalCompressorAudioProcessorEditor::paint(juce::Graphics& g)
@@ -74,31 +107,26 @@ void VocalCompressorAudioProcessorEditor::resized()
     const int w = getWidth();
     const int h = getHeight();
 
-    // --- Knobs: 7 colunas igualmente espaçadas sobre a imagem ---
-    constexpr float knobCentresX[7] = { 0.1852f, 0.2884f, 0.3915f, 0.4946f, 0.5978f, 0.7009f, 0.8041f };
-    constexpr float knobColHalfWidth = 0.052f;
-    constexpr float knobTop = 0.335f;
-    constexpr float knobBottom = 0.628f;
+    juce::Slider* sliders[numKnobs] = { &thresholdSlider, &ratioSlider, &attackSlider,
+                                         &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
 
-    juce::Slider* sliders[7] = { &thresholdSlider, &ratioSlider, &attackSlider,
-                                  &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
-
-    for (int i = 0; i < 7; ++i)
-        sliders[i]->setBounds(fracRect(w, h, knobCentresX[i] - knobColHalfWidth, knobTop,
-                                        knobCentresX[i] + knobColHalfWidth, knobBottom));
+    for (int i = 0; i < numKnobs; ++i)
+    {
+        sliders[i]->setBounds(fracRectCentred(w, h, knobCentresX[i], knobCentreY, knobDiameter, knobDiameter));
+        valueLabels[i].setBounds(fracRectCentred(w, h, knobCentresX[i],
+                                                  (valueBoxTop + valueBoxBottom) * 0.5f,
+                                                  valueBoxWidth, valueBoxBottom - valueBoxTop));
+    }
 
     // --- Coluna INPUT (esquerda) ---
-    inputScale.setBounds(fracRect(w, h, 0.0350f, 0.2367f, 0.0507f, 0.5520f));
-    inputMeter.setBounds(fracRect(w, h, 0.0531f, 0.2367f, 0.0857f, 0.5520f));
+    inputMeter.setBounds(fracRect(w, h, 0.056667f, 0.237718f, 0.084167f, 0.553091f));
 
     // --- Coluna OUTPUT (direita) ---
-    outputScale.setBounds(fracRect(w, h, 0.8934f, 0.2367f, 0.9071f, 0.5520f));
-    outputMeter.setBounds(fracRect(w, h, 0.9096f, 0.2367f, 0.9421f, 0.5520f));
+    outputMeter.setBounds(fracRect(w, h, 0.918333f, 0.237718f, 0.946667f, 0.553091f));
 
     // --- GR (abaixo do OUTPUT) ---
-    grMeter.setBounds(fracRect(w, h, 0.9096f, 0.6836f, 0.9421f, 0.8834f));
-    grScale.setBounds(fracRect(w, h, 0.9457f, 0.6836f, 0.9650f, 0.8834f));
+    grMeter.setBounds(fracRect(w, h, 0.918333f, 0.686212f, 0.946667f, 0.885896f));
 
     // --- HPF: em cima da área "SIDECHAIN OFF/HPF" da imagem ---
-    hpfButton.setBounds(fracRect(w, h, 0.0362f, 0.8083f, 0.1291f, 0.8522f));
+    hpfButton.setBounds(fracRect(w, h, 0.038333f, 0.811410f, 0.129167f, 0.849445f));
 }

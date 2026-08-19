@@ -4,7 +4,6 @@
 #include "GainReductionMeter.h"
 #include "UI/NFLookAndFeel.h"
 #include "UI/LevelMeter.h"
-#include "UI/MeterScale.h"
 
 class VocalCompressorAudioProcessorEditor : public juce::AudioProcessorEditor
 {
@@ -16,7 +15,10 @@ public:
     void resized() override;
 
 private:
-    void setupKnob(juce::Slider& slider);
+    static constexpr int numKnobs = 7;
+
+    void setupKnob(int index, juce::Slider& slider, int decimalPlaces);
+    void updateValueLabel(int index);
 
     VocalCompressorAudioProcessor& audioProcessor;
     NFLookAndFeel nfLookAndFeel;
@@ -24,14 +26,12 @@ private:
 
     juce::Slider thresholdSlider, ratioSlider, attackSlider,
                  releaseSlider, driveSlider, makeupSlider, mixSlider;
+    juce::Label valueLabels[numKnobs];
 
     juce::ToggleButton hpfButton { "Vocal HPF" };
 
     GainReductionMeter grMeter;
     LevelMeter inputMeter, outputMeter;
-    MeterScale inputScale { -60.0f, { 0.0f, -12.0f, -24.0f, -36.0f, -48.0f, -60.0f } };
-    MeterScale outputScale { -60.0f, { 0.0f, -12.0f, -24.0f, -36.0f, -48.0f, -60.0f } };
-    MeterScale grScale { -GainReductionMeter::maxRangeDb, { 0.0f, -6.0f, -12.0f, -18.0f, -24.0f } };
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
