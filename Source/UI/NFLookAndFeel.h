@@ -44,7 +44,10 @@ public:
         // partir dali, não o ângulo absoluto.
         auto rotationFromRest = sliderPos * (rotaryEndAngle - rotaryStartAngle);
 
-        float diameter = juce::jmin(bounds.getWidth(), bounds.getHeight()) * 0.96f;
+        // Sem encolher: a imagem já foi feita no tamanho certo pra faceplate,
+        // então desenhamos ela na resolução nativa (bounds já vem calibrado
+        // pra isso no editor).
+        float diameter = juce::jmin(bounds.getWidth(), bounds.getHeight());
         float imgSize = (float) knobImage.getWidth();
         float scale = diameter / imgSize;
 
@@ -55,18 +58,18 @@ public:
 
         g.drawImageTransformed(knobImage, transform, false);
 
-        // Arquinho de valor (roxo), crescendo ao redor do knob, na faixa das
-        // marcações de escala já impressas na imagem de fundo.
+        // Arquinho de valor (verde, igual o pontinho), crescendo bem rente à
+        // borda do knob, no vãozinho antes das marcações da faceplate.
         auto centre = bounds.getCentre();
-        auto arcRadius = diameter * 0.5f * 1.28f;
+        auto arcRadius = diameter * 0.5f * 1.11f;
         auto angle = rotaryStartAngle + rotationFromRest;
 
         juce::Path valueArc;
         valueArc.addCentredArc(centre.x, centre.y, arcRadius, arcRadius, 0.0f, rotaryStartAngle, angle, true);
-        g.setColour(kPurple.withAlpha(0.35f));
-        g.strokePath(valueArc, juce::PathStrokeType(5.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setColour(kPurple);
-        g.strokePath(valueArc, juce::PathStrokeType(2.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour(kGreen.withAlpha(0.35f));
+        g.strokePath(valueArc, juce::PathStrokeType(3.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour(kGreen);
+        g.strokePath(valueArc, juce::PathStrokeType(1.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
     void drawToggleButton(juce::Graphics& g, juce::ToggleButton& button,

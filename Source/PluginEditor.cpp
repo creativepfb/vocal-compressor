@@ -19,7 +19,10 @@ namespace
 
     constexpr float knobCentresX[7] = { 0.1875f, 0.29125f, 0.397083f, 0.501667f, 0.605f, 0.708333f, 0.811667f };
     constexpr float knobCentreY = 0.408083f;
-    constexpr float knobDiameter = 0.056667f;
+    // Resolução nativa da imagem do knob (88x88) sobre a faceplate de 1200px
+    // de largura - sem encolher, senão o anel/ponteiro perde nitidez e fica
+    // pequeno demais perto das marcações da faceplate.
+    constexpr float knobDiameter = 88.0f / 1200.0f;
 
     constexpr float valueBoxTop = 0.573693f;
     constexpr float valueBoxBottom = 0.630744f;
