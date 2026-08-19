@@ -2,7 +2,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "NFLookAndFeel.h"
 
-/** Medidor de nível vertical (0 a -60 dB), LED segmentado, preenchendo de baixo pra cima. */
+/** Medidor de nível vertical (0 a -60 dB), verde->amarelo->vermelho, enche de baixo pra cima. */
 class LevelMeter : public juce::Component, private juce::Timer
 {
 public:
@@ -15,7 +15,7 @@ public:
     {
         float db = juce::jlimit(-60.0f, 0.0f, displayed);
         float fraction = (db + 60.0f) / 60.0f;
-        NFLookAndFeel::drawSegmentedMeter(g, getLocalBounds().toFloat(), fraction, true);
+        NFLookAndFeel::drawLevelMeterBar(g, getLocalBounds().toFloat(), fraction);
     }
 
 private:

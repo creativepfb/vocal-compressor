@@ -33,6 +33,9 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
         caption->setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
     }
 
+    for (auto* scale : { &inputScale, &outputScale, &grScale })
+        addAndMakeVisible(*scale);
+
     auto& apvts = audioProcessor.apvts;
     thresholdAttach = std::make_unique<SliderAttachment>(apvts, "threshold", thresholdSlider);
     ratioAttach     = std::make_unique<SliderAttachment>(apvts, "ratio", ratioSlider);
@@ -90,9 +93,9 @@ void VocalCompressorAudioProcessorEditor::paint(juce::Graphics& g)
     };
 
     auto panels = contentArea;
-    drawPanel(panels.removeFromLeft(40));
+    drawPanel(panels.removeFromLeft(kInputColWidth));
     panels.removeFromLeft(10);
-    drawPanel(panels.removeFromRight(90));
+    drawPanel(panels.removeFromRight(kRightColWidth));
     panels.removeFromRight(10);
     drawPanel(panels);
 
@@ -140,23 +143,29 @@ void VocalCompressorAudioProcessorEditor::resized()
     area.removeFromTop(36);  // tagline (desenhada no paint)
     area = area.reduced(12);
 
-    // Coluna Input (esquerda)
-    auto inputCol = area.removeFromLeft(40);
+    // Coluna Input (esquerda): medidor + escala em dB
+    auto inputCol = area.removeFromLeft(kInputColWidth);
     inputCaption.setBounds(inputCol.removeFromTop(16));
     inputCol.removeFromBottom(20);
-    inputMeter.setBounds(inputCol);
+    inputMeter.setBounds(inputCol.removeFromLeft(28));
+    inputCol.removeFromLeft(2);
+    inputScale.setBounds(inputCol);
     area.removeFromLeft(10);
 
-    // Coluna Output + GR (direita)
-    auto rightCol = area.removeFromRight(90);
-    auto outputCol = rightCol.removeFromLeft(40);
+    // Coluna Output + GR (direita), cada uma com sua escala
+    auto rightCol = area.removeFromRight(kRightColWidth);
+    auto outputCol = rightCol.removeFromLeft(54);
     outputCaption.setBounds(outputCol.removeFromTop(16));
     outputCol.removeFromBottom(20);
-    outputMeter.setBounds(outputCol);
+    outputMeter.setBounds(outputCol.removeFromLeft(28));
+    outputCol.removeFromLeft(2);
+    outputScale.setBounds(outputCol);
 
-    rightCol.removeFromLeft(10);
+    rightCol.removeFromLeft(8);
     grCaption.setBounds(rightCol.removeFromTop(16));
     rightCol.removeFromBottom(20);
+    grScale.setBounds(rightCol.removeFromLeft(20));
+    rightCol.removeFromLeft(2);
     grMeter.setBounds(rightCol);
 
     area.removeFromRight(10);

@@ -11,12 +11,13 @@ public:
         startTimerHz(30);
     }
 
+    static constexpr float maxRangeDb = 24.0f;
+
     void paint(juce::Graphics& g) override
     {
-        float gr = juce::jlimit(0.0f, 24.0f, -displayedGr);
-        float fillFraction = gr / 24.0f;
-        // GR enche de cima pra baixo (fillFromBottom = false)
-        NFLookAndFeel::drawSegmentedMeter(g, getLocalBounds().toFloat(), fillFraction, false);
+        float gr = juce::jlimit(0.0f, maxRangeDb, -displayedGr);
+        float fillFraction = gr / maxRangeDb;
+        NFLookAndFeel::drawReductionMeterBar(g, getLocalBounds().toFloat(), fillFraction);
     }
 
 private:

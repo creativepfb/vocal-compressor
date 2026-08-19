@@ -4,6 +4,7 @@
 #include "GainReductionMeter.h"
 #include "UI/NFLookAndFeel.h"
 #include "UI/LevelMeter.h"
+#include "UI/MeterScale.h"
 
 class VocalCompressorAudioProcessorEditor : public juce::AudioProcessorEditor
 {
@@ -15,6 +16,9 @@ public:
     void resized() override;
 
 private:
+    static constexpr int kInputColWidth = 58;
+    static constexpr int kRightColWidth = 112;
+
     void setupKnob(juce::Slider& slider, juce::Label& label, const juce::String& text);
 
     VocalCompressorAudioProcessor& audioProcessor;
@@ -32,6 +36,9 @@ private:
     GainReductionMeter grMeter;
     LevelMeter inputMeter, outputMeter;
     juce::Label inputCaption { {}, "INPUT" }, outputCaption { {}, "OUTPUT" }, grCaption { {}, "GR" };
+    MeterScale inputScale { -60.0f, { 0.0f, -12.0f, -24.0f, -36.0f, -48.0f, -60.0f } };
+    MeterScale outputScale { -60.0f, { 0.0f, -12.0f, -24.0f, -36.0f, -48.0f, -60.0f } };
+    MeterScale grScale { -GainReductionMeter::maxRangeDb, { 0.0f, -6.0f, -12.0f, -18.0f, -24.0f } };
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;

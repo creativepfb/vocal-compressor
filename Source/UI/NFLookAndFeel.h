@@ -13,6 +13,7 @@ public:
     static const juce::Colour kPurple;
     static const juce::Colour kGreen;
     static const juce::Colour kRed;
+    static const juce::Colour kYellow;
     static const juce::Colour kTextLight;
     static const juce::Colour kTextDim;
 
@@ -141,59 +142,48 @@ public:
         return juce::Font(juce::FontOptions(12.0f, juce::Font::bold));
     }
 
-    /** Medidor tipo LED segmentado, reaproveitado pelos medidores de nível e de GR. */
-    static void drawSegmentedMeter(juce::Graphics& g, juce::Rectangle<float> bounds,
-                                    float fraction, bool fillFromBottom)
+    static void drawMeterBackground(juce::Graphics& g, juce::Rectangle<float> bounds)
     {
-        fraction = juce::jlimit(0.0f, 1.0f, fraction);
-
         g.setColour(juce::Colours::black.withAlpha(0.5f));
         g.fillRoundedRectangle(bounds.translated(0.0f, 1.0f), 3.0f);
         g.setColour(juce::Colour(0xff08080a));
         g.fillRoundedRectangle(bounds, 3.0f);
-
-        constexpr int numSegments = 20;
-        constexpr float gap = 2.0f;
-        auto area = bounds.reduced(3.0f);
-        float segHeight = (area.getHeight() - gap * (float) (numSegments - 1)) / (float) numSegments;
-        if (segHeight <= 0.0f)
-            return;
-
-        int litCount = juce::roundToInt(fraction * (float) numSegments);
-
-        for (int i = 0; i < numSegments; ++i)
-        {
-            // i=0 é sempre a linha desenhada mais no topo. Se enche de baixo
-            // pra cima (medidor de nível), a linha de baixo acende primeiro;
-            // se enche de cima pra baixo (GR), a linha de cima acende primeiro.
-            int indexFromFillStart = fillFromBottom ? (numSegments - 1 - i) : i;
-            bool isLit = indexFromFillStart < litCount;
-
-            // posição 0 = topo do medidor, 1 = base (vermelho sempre no topo)
-            float positionFromTop = (float) i / (float) (numSegments - 1);
-
-            juce::Colour segColour = positionFromTop < 0.12f ? kRed
-                                    : (positionFromTop < 0.35f ? kPurple : kGreen);
-
-            float yFromTop = area.getY() + (float) i * (segHeight + gap);
-            juce::Rectangle<float> segRect(area.getX(), yFromTop, area.getWidth(), segHeight);
-
-            if (isLit)
-            {
-                g.setColour(segColour.withAlpha(0.30f));
-                g.fillRoundedRectangle(segRect.expanded(1.0f), 2.0f);
-                g.setColour(segColour);
-                g.fillRoundedRectangle(segRect, 1.2f);
-            }
-            else
-            {
-                g.setColour(segColour.withAlpha(0.07f));
-                g.fillRoundedRectangle(segRect, 1.2f);
-            }
-        }
-
         g.setColour(juce::Colour(0xff35353c));
         g.drawRoundedRectangle(bounds, 3.0f, 1.0f);
+    }
+
+    /** Medidor de nível (Input/Output): verde -> amarelo -> vermelho, padrão de VU, enche de baixo pra cima. */
+    static void drawLevelMeterBar(juce::Graphics& g, juce::Rectangle<float> bounds, float fraction)
+    {
+        fraction = juce::jlimit(0.0f, 1.0f, fraction);
+        drawMeterBackground(g, bounds);
+
+        auto area = bounds.reduced(2.5f);
+        auto fillRect = area.removeFromBottom(area.getHeight() * fraction);
+        if (fillRect.getHeight() <= 0.0f)
+            return;
+
+        // Gradiente fixo na altura total do medidor (não só no trecho preenchido),
+        // pra cor bater sempre com a posição real em dB, não com o quanto está aceso.
+        juce::ColourGradient grad(kGreen, 0.0f, bounds.getBottom(), kRed, 0.0f, bounds.getY(), false);
+        grad.addColour(0.7, kYellow);
+        g.setGradientFill(grad);
+        g.fillRoundedRectangle(fillRect, 2.0f);
+    }
+
+    /** Medidor de Gain Reduction: sempre vermelho, enche de cima pra baixo. */
+    static void drawReductionMeterBar(juce::Graphics& g, juce::Rectangle<float> bounds, float fraction)
+    {
+        fraction = juce::jlimit(0.0f, 1.0f, fraction);
+        drawMeterBackground(g, bounds);
+
+        auto area = bounds.reduced(2.5f);
+        auto fillRect = area.removeFromTop(area.getHeight() * fraction);
+        if (fillRect.getHeight() <= 0.0f)
+            return;
+
+        g.setColour(kRed);
+        g.fillRoundedRectangle(fillRect, 2.0f);
     }
 };
 
@@ -202,5 +192,6 @@ inline const juce::Colour NFLookAndFeel::kPanel      { 0xff17171a };
 inline const juce::Colour NFLookAndFeel::kPurple     { 0xffa855f7 };
 inline const juce::Colour NFLookAndFeel::kGreen      { 0xff39ff6a };
 inline const juce::Colour NFLookAndFeel::kRed        { 0xffff3b3b };
+inline const juce::Colour NFLookAndFeel::kYellow     { 0xffffd23f };
 inline const juce::Colour NFLookAndFeel::kTextLight  { 0xffe8e8ec };
 inline const juce::Colour NFLookAndFeel::kTextDim    { 0xff8a8a92 };
