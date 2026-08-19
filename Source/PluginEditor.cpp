@@ -2,8 +2,11 @@
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     VocalCompressorAudioProcessor& p)
-    : AudioProcessorEditor(&p), audioProcessor(p), grMeter(p)
+    : AudioProcessorEditor(&p), audioProcessor(p), grMeter(p),
+      inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb)
 {
+    setLookAndFeel(&nfLookAndFeel);
+
     setupKnob(thresholdSlider, thresholdLabel, "Threshold");
     setupKnob(ratioSlider, ratioLabel, "Ratio");
     setupKnob(attackSlider, attackLabel, "Attack");
@@ -13,7 +16,22 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     setupKnob(mixSlider, mixLabel, "Mix");
 
     addAndMakeVisible(hpfButton);
+    addAndMakeVisible(sidechainCaption);
+    sidechainCaption.setJustificationType(juce::Justification::centred);
+    sidechainCaption.setColour(juce::Label::textColourId, NFLookAndFeel::kTextDim);
+    sidechainCaption.setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
+
     addAndMakeVisible(grMeter);
+    addAndMakeVisible(inputMeter);
+    addAndMakeVisible(outputMeter);
+
+    for (auto* caption : { &inputCaption, &outputCaption, &grCaption })
+    {
+        addAndMakeVisible(*caption);
+        caption->setJustificationType(juce::Justification::centred);
+        caption->setColour(juce::Label::textColourId, NFLookAndFeel::kTextDim);
+        caption->setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
+    }
 
     auto& apvts = audioProcessor.apvts;
     thresholdAttach = std::make_unique<SliderAttachment>(apvts, "threshold", thresholdSlider);
@@ -25,42 +43,102 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     mixAttach       = std::make_unique<SliderAttachment>(apvts, "mix", mixSlider);
     hpfAttach       = std::make_unique<ButtonAttachment>(apvts, "hpf", hpfButton);
 
-    setSize(650, 280);
+    setSize(760, 320);
+}
+
+VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
+{
+    setLookAndFeel(nullptr);
 }
 
 void VocalCompressorAudioProcessorEditor::setupKnob(juce::Slider& slider, juce::Label& label,
                                                        const juce::String& text)
 {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 70, 20);
+    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 74, 18);
+    slider.setColour(juce::Slider::textBoxTextColourId, NFLookAndFeel::kTextLight);
     addAndMakeVisible(slider);
 
     label.setText(text, juce::dontSendNotification);
     label.setJustificationType(juce::Justification::centred);
+    label.setColour(juce::Label::textColourId, NFLookAndFeel::kTextDim);
+    label.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
     addAndMakeVisible(label);
 }
 
 void VocalCompressorAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(0xff2b2b2b));
+    g.fillAll(NFLookAndFeel::kBackground);
 
-    g.setColour(juce::Colours::white);
-    g.setFont(18.0f);
-    g.drawFittedText("Vocal Compressor", getLocalBounds().removeFromTop(30),
-                      juce::Justification::centred, 1);
+    // --- Barra de topo ---
+    auto topBar = getLocalBounds().removeFromTop(36);
+    g.setColour(NFLookAndFeel::kPanel);
+    g.fillRect(topBar);
+
+    // bolinhas de janela
+    auto dotsArea = topBar.reduced(12, 0).removeFromLeft(60);
+    juce::Colour dotColours[] { juce::Colour(0xffff5f57), juce::Colour(0xffffbd2e), juce::Colour(0xff28c840) };
+    for (int i = 0; i < 3; ++i)
+    {
+        auto d = juce::Rectangle<float>((float) dotsArea.getX() + i * 18.0f, (float) dotsArea.getCentreY() - 5.0f, 10.0f, 10.0f);
+        g.setColour(dotColours[i]);
+        g.fillEllipse(d);
+    }
+
+    // logo NF + título
+    auto textArea = topBar.withTrimmedLeft(90);
+    g.setFont(juce::Font(juce::FontOptions(20.0f, juce::Font::bold)));
+    g.setColour(NFLookAndFeel::kGreen);
+    auto nfWidth = 40;
+    g.drawFittedText("NF", textArea.removeFromLeft(nfWidth), juce::Justification::centredLeft, 1);
+
+    g.setFont(juce::Font(juce::FontOptions(16.0f, juce::Font::plain)));
+    g.setColour(NFLookAndFeel::kTextLight);
+    g.drawFittedText("Vocal Compressor", textArea, juce::Justification::centredLeft, 1);
+
+    // separador
+    g.setColour(juce::Colour(0xff2a2a30));
+    g.drawLine(0.0f, (float) topBar.getBottom(), (float) getWidth(), (float) topBar.getBottom(), 1.0f);
+
+    // --- Título central + tagline ---
+    auto centreArea = getLocalBounds().withTrimmedTop(topBar.getBottom() + 6).removeFromTop(30);
+    g.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
+    g.setColour(NFLookAndFeel::kTextDim);
+    g.drawFittedText("SMOOTH  *  CLEAR  *  CONTROL", centreArea, juce::Justification::centred, 1);
 }
 
 void VocalCompressorAudioProcessorEditor::resized()
 {
-    auto area = getLocalBounds().reduced(10);
-    area.removeFromTop(30); // espaço do título
+    auto area = getLocalBounds();
+    area.removeFromTop(36);  // barra de topo (desenhada no paint)
+    area.removeFromTop(36);  // tagline (desenhada no paint)
+    area = area.reduced(12);
 
-    hpfButton.setBounds(area.removeFromTop(24));
-    area.removeFromTop(6);
+    // Coluna Input (esquerda)
+    auto inputCol = area.removeFromLeft(40);
+    inputCaption.setBounds(inputCol.removeFromTop(16));
+    inputCol.removeFromBottom(20);
+    inputMeter.setBounds(inputCol);
+    area.removeFromLeft(10);
 
-    auto meterArea = area.removeFromRight(40);
-    grMeter.setBounds(meterArea);
+    // Coluna Output + GR (direita)
+    auto rightCol = area.removeFromRight(90);
+    auto outputCol = rightCol.removeFromLeft(40);
+    outputCaption.setBounds(outputCol.removeFromTop(16));
+    outputCol.removeFromBottom(20);
+    outputMeter.setBounds(outputCol);
+
+    rightCol.removeFromLeft(10);
+    grCaption.setBounds(rightCol.removeFromTop(16));
+    rightCol.removeFromBottom(20);
+    grMeter.setBounds(rightCol);
+
     area.removeFromRight(10);
+
+    // Área central: knobs em cima, HPF embaixo
+    auto hpfArea = area.removeFromBottom(48);
+    sidechainCaption.setBounds(hpfArea.removeFromTop(14).withSizeKeepingCentre(90, 14));
+    hpfButton.setBounds(hpfArea.withSizeKeepingCentre(90, 22));
 
     constexpr int numKnobs = 7;
     int knobWidth = area.getWidth() / numKnobs;

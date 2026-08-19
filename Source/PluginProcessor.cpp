@@ -79,6 +79,11 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     compressorR.setParameters(thresholdParam->load(), ratioParam->load(), attackParam->load(),
                                releaseParam->load(), driveParam->load(), makeupParam->load(), hpfOn);
 
+    float inPeak = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        inPeak = juce::jmax(inPeak, buffer.getMagnitude(ch, 0, buffer.getNumSamples()));
+    currentInputDb.store(juce::Decibels::gainToDecibels(inPeak, -60.0f));
+
     auto* left  = buffer.getWritePointer(0);
     auto* right = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : nullptr;
 
@@ -101,6 +106,11 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     // Para o medidor de GR na GUI: usa o maior corte entre os canais (valores negativos)
     currentGainReductionDb.store(
         juce::jmin(compressorL.getLastGainReductionDb(), compressorR.getLastGainReductionDb()));
+
+    float outPeak = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        outPeak = juce::jmax(outPeak, buffer.getMagnitude(ch, 0, buffer.getNumSamples()));
+    currentOutputDb.store(juce::Decibels::gainToDecibels(outPeak, -60.0f));
 }
 
 juce::AudioProcessorEditor* VocalCompressorAudioProcessor::createEditor()

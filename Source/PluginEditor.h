@@ -2,12 +2,14 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 #include "GainReductionMeter.h"
+#include "UI/NFLookAndFeel.h"
+#include "UI/LevelMeter.h"
 
 class VocalCompressorAudioProcessorEditor : public juce::AudioProcessorEditor
 {
 public:
     explicit VocalCompressorAudioProcessorEditor(VocalCompressorAudioProcessor&);
-    ~VocalCompressorAudioProcessorEditor() override = default;
+    ~VocalCompressorAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -16,6 +18,7 @@ private:
     void setupKnob(juce::Slider& slider, juce::Label& label, const juce::String& text);
 
     VocalCompressorAudioProcessor& audioProcessor;
+    NFLookAndFeel nfLookAndFeel;
 
     juce::Slider thresholdSlider, ratioSlider, attackSlider,
                  releaseSlider, driveSlider, makeupSlider, mixSlider;
@@ -24,8 +27,11 @@ private:
                 releaseLabel, driveLabel, makeupLabel, mixLabel;
 
     juce::ToggleButton hpfButton { "Vocal HPF" };
+    juce::Label sidechainCaption { {}, "SIDECHAIN" };
 
     GainReductionMeter grMeter;
+    LevelMeter inputMeter, outputMeter;
+    juce::Label inputCaption { {}, "INPUT" }, outputCaption { {}, "OUTPUT" }, grCaption { {}, "GR" };
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;

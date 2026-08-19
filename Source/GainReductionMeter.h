@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
+#include "UI/NFLookAndFeel.h"
 
 class GainReductionMeter : public juce::Component, private juce::Timer
 {
@@ -14,8 +15,8 @@ public:
     {
         auto bounds = getLocalBounds().toFloat();
 
-        g.setColour(juce::Colours::black.withAlpha(0.6f));
-        g.fillRoundedRectangle(bounds, 4.0f);
+        g.setColour(juce::Colour(0xff0a0a0c));
+        g.fillRoundedRectangle(bounds, 3.0f);
 
         float gr = juce::jlimit(0.0f, 24.0f, -displayedGr);
         float fillFraction = gr / 24.0f;
@@ -25,14 +26,14 @@ public:
         auto fillRect = barArea.removeFromTop(fillHeight);
 
         juce::Colour meterColour = fillFraction < 0.5f
-            ? juce::Colours::limegreen
-            : (fillFraction < 0.8f ? juce::Colours::yellow : juce::Colours::red);
+            ? NFLookAndFeel::kGreen
+            : (fillFraction < 0.8f ? NFLookAndFeel::kPurple : juce::Colour(0xffff3b3b));
 
         g.setColour(meterColour);
-        g.fillRoundedRectangle(fillRect, 3.0f);
+        g.fillRoundedRectangle(fillRect, 2.0f);
 
-        g.setColour(juce::Colours::grey);
-        g.drawRoundedRectangle(bounds, 4.0f, 1.0f);
+        g.setColour(juce::Colour(0xff2f2f36));
+        g.drawRoundedRectangle(bounds, 3.0f, 1.0f);
     }
 
 private:

@@ -34,6 +34,8 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
     std::atomic<float> currentGainReductionDb { 0.0f };
+    std::atomic<float> currentInputDb { -60.0f };
+    std::atomic<float> currentOutputDb { -60.0f };
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
