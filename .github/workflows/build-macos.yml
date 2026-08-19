@@ -16,7 +16,7 @@ jobs:
         run: git clone --depth 1 --branch master https://github.com/juce-framework/JUCE.git JUCE
 
       - name: Configure
-        run: cmake -B build -G Xcode
+        run: cmake -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
 
       - name: Build (Release)
         run: cmake --build build --config Release
