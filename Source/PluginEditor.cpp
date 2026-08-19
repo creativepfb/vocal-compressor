@@ -68,7 +68,33 @@ void VocalCompressorAudioProcessorEditor::setupKnob(juce::Slider& slider, juce::
 
 void VocalCompressorAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(NFLookAndFeel::kBackground);
+    // Fundo com leve vinheta radial (mais claro no centro, mais escuro nas bordas)
+    juce::ColourGradient bg(juce::Colour(0xff141417), getWidth() * 0.5f, getHeight() * 0.5f,
+                             NFLookAndFeel::kBackground, 0.0f, 0.0f, true);
+    g.setGradientFill(bg);
+    g.fillAll();
+
+    // --- Painéis das seções (dão profundidade, evitam visual "chapado") ---
+    auto contentArea = getLocalBounds().withTrimmedTop(72).reduced(12);
+    contentArea.removeFromBottom(48 + 6);
+
+    auto drawPanel = [&g](juce::Rectangle<int> r)
+    {
+        auto rf = r.toFloat();
+        g.setColour(juce::Colours::black.withAlpha(0.35f));
+        g.fillRoundedRectangle(rf.translated(0.0f, 1.5f), 8.0f);
+        g.setColour(juce::Colour(0xff151518));
+        g.fillRoundedRectangle(rf, 8.0f);
+        g.setColour(juce::Colour(0xff28282e));
+        g.drawRoundedRectangle(rf.reduced(0.5f), 8.0f, 1.0f);
+    };
+
+    auto panels = contentArea;
+    drawPanel(panels.removeFromLeft(40));
+    panels.removeFromLeft(10);
+    drawPanel(panels.removeFromRight(90));
+    panels.removeFromRight(10);
+    drawPanel(panels);
 
     // --- Barra de topo ---
     auto topBar = getLocalBounds().removeFromTop(36);
