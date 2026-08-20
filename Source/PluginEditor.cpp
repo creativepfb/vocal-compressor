@@ -57,9 +57,17 @@ namespace
     constexpr float filterX0 = 0.069508f, filterX1 = 0.180328f;
     constexpr float filterY0 = 0.714130f, filterY1 = 0.901087f;
 
-    // Caixa BYPASS no topo (faceplate-4.png).
-    constexpr float bypassX0 = 0.736393f, bypassX1 = 0.847213f;
-    constexpr float bypassY0 = 0.067391f, bypassY1 = 0.113043f;
+    // Caixa preta já impressa na faceplate, ao lado da palavra "BYPASS"
+    // (também impressa) - mostra só o indicador piscando (BypassIndicator),
+    // nunca o botão físico.
+    constexpr float bypassBoxX0 = 0.736393f, bypassBoxX1 = 0.847213f;
+    constexpr float bypassBoxY0 = 0.067391f, bypassBoxY1 = 0.113043f;
+
+    // Botão físico de BYPASS de verdade - fica embaixo da palavra "BYPASS"
+    // impressa (espaço em branco na faceplate, à esquerda da caixa preta -
+    // medido diretamente no PNG), não dentro da caixa preta.
+    constexpr float bypassBtnX0 = 0.652459f, bypassBtnX1 = 0.734426f;
+    constexpr float bypassBtnY0 = 0.092391f, bypassBtnY1 = 0.139130f;
 }
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
@@ -68,7 +76,8 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
       inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb),
       inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb),
       rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
-      eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0)
+      eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
+      bypassIndicator(*p.apvts.getRawParameterValue("bypass"))
 {
     content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate4_png, BinaryData::faceplate4_pngSize);
     nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::botaopng126px_png, BinaryData::botaopng126px_pngSize);
@@ -87,35 +96,30 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     content.addAndMakeVisible(outputMeter);
     content.addAndMakeVisible(inputReadout);
     content.addAndMakeVisible(outputReadout);
-    content.addAndMakeVisible(hpfButton);
 
-    bypassLabel.setText("BYPASS");
-    bypassLabel.setFontHeight(11.0f);
-    bypassLabel.setColour(NFLookAndFeel::kTextLight);
-    bypassLabel.setInterceptsMouseClicks(false, false);
-    content.addAndMakeVisible(bypassLabel);
+    content.addAndMakeVisible(bypassIndicator);
+    bypassButton.setLedColour(NFLookAndFeel::kRed); // bypass = alerta, não "ligado normal"
     content.addAndMakeVisible(bypassButton);
 
-    // PRE EQ / POST EQ: cada clique liga/desliga o próprio estágio (feito
-    // pelo ButtonAttachment abaixo) E seleciona esse EQ pro gráfico -
-    // independentes entre si, não é radio group (os dois podem ficar ON
-    // juntos). O aro branco de "selecionado" é só visual, separado do
-    // brilho verde de ON. HPF nunca mexe na seleção.
-    preOnButton.onClick = [this]
+    // PRE EQ / POST EQ / HPF: cada clique liga/desliga o próprio estágio
+    // (feito pelo ButtonAttachment abaixo) E seleciona esse filtro pro
+    // gráfico - independentes entre si, não é radio group de ON/OFF (os
+    // três podem ficar ON ao mesmo tempo, só um fica SELECTED por vez,
+    // marcado com o aro fino no botão + rótulo no gráfico).
+    auto selectFilter = [this](EQGraphComponent::SelectedFilter f)
     {
-        eqGraph.setSelectedEQ(true);
-        preOnButton.setSelectedForEditing(true);
-        postOnButton.setSelectedForEditing(false);
+        eqGraph.setSelectedFilter(f);
+        preOnButton.setSelectedForEditing(f == EQGraphComponent::SelectedFilter::Pre);
+        postOnButton.setSelectedForEditing(f == EQGraphComponent::SelectedFilter::Post);
+        hpfButton.setSelectedForEditing(f == EQGraphComponent::SelectedFilter::Hpf);
     };
-    postOnButton.onClick = [this]
-    {
-        eqGraph.setSelectedEQ(false);
-        postOnButton.setSelectedForEditing(true);
-        preOnButton.setSelectedForEditing(false);
-    };
+    preOnButton.onClick  = [this, selectFilter] { selectFilter(EQGraphComponent::SelectedFilter::Pre); };
+    postOnButton.onClick = [this, selectFilter] { selectFilter(EQGraphComponent::SelectedFilter::Post); };
+    hpfButton.onClick    = [this, selectFilter] { selectFilter(EQGraphComponent::SelectedFilter::Hpf); };
     preOnButton.setSelectedForEditing(true); // EQGraphComponent começa mostrando o PRE
     content.addAndMakeVisible(preOnButton);
     content.addAndMakeVisible(postOnButton);
+    content.addAndMakeVisible(hpfButton);
 
     content.addAndMakeVisible(rtaDisplay);
     content.addAndMakeVisible(eqGraph); // por cima do RTA, de proposito
@@ -216,26 +220,32 @@ void VocalCompressorAudioProcessorEditor::resized()
 
     grMeter.setBounds(fracRect(w, h, grMeterX0, grMeterY0, grMeterX1, grMeterY1));
 
-    // 3 botões push empilhados dentro da caixa FILTER única: PRE EQ / POST EQ / HPF.
+    // 3 botões compactos dentro da caixa FILTER única, com margens e vãos
+    // entre eles (não preenchendo a área toda) - PRE EQ / POST EQ / HPF.
     {
         auto filterBox = fracRect(w, h, filterX0, filterY0, filterX1, filterY1);
-        constexpr int gap = 6;
-        int rowH = (filterBox.getHeight() - gap * 2) / 3;
+        constexpr int sideMargin = 14;
+        constexpr int verticalMargin = 10;
+        constexpr int gap = 7;
 
-        preOnButton.setBounds(filterBox.getX(), filterBox.getY(), filterBox.getWidth(), rowH);
-        postOnButton.setBounds(filterBox.getX(), filterBox.getY() + rowH + gap, filterBox.getWidth(), rowH);
-        hpfButton.setBounds(filterBox.getX(), filterBox.getY() + (rowH + gap) * 2, filterBox.getWidth(), rowH);
+        int buttonX = filterBox.getX() + sideMargin;
+        int buttonWidth = filterBox.getWidth() - sideMargin * 2;
+        int buttonHeight = (filterBox.getHeight() - verticalMargin * 2 - gap * 2) / 3;
+        int row0Y = filterBox.getY() + verticalMargin;
+        int row1Y = row0Y + buttonHeight + gap;
+        int row2Y = row1Y + buttonHeight + gap;
+
+        preOnButton.setBounds(buttonX, row0Y, buttonWidth, buttonHeight);
+        postOnButton.setBounds(buttonX, row1Y, buttonWidth, buttonHeight);
+        hpfButton.setBounds(buttonX, row2Y, buttonWidth, buttonHeight);
     }
 
-    // BYPASS: rótulo em cima, botão físico embaixo (não lado a lado) - o
-    // grande retângulo preto do topo é outro elemento, não mexe nele aqui.
-    {
-        auto bypassBox = fracRect(w, h, bypassX0, bypassY0, bypassX1, bypassY1);
-        int labelH = juce::jmin(16, bypassBox.getHeight() / 3);
-        bypassLabel.setBounds(bypassBox.getX(), bypassBox.getY(), bypassBox.getWidth(), labelH);
-        bypassButton.setBounds(bypassBox.getX(), bypassBox.getY() + labelH + 2,
-                                bypassBox.getWidth(), bypassBox.getHeight() - labelH - 2);
-    }
+    // Caixa preta impressa na faceplate: só o indicador piscando, como antes.
+    bypassIndicator.setBounds(fracRect(w, h, bypassBoxX0, bypassBoxY0, bypassBoxX1, bypassBoxY1));
+
+    // Botão físico de BYPASS de verdade: embaixo da palavra "BYPASS"
+    // impressa, fora da caixa preta.
+    bypassButton.setBounds(fracRect(w, h, bypassBtnX0, bypassBtnY0, bypassBtnX1, bypassBtnY1));
 
     rtaDisplay.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
     eqGraph.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));

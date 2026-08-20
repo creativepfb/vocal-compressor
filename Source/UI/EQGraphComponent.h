@@ -17,6 +17,11 @@
 class EQGraphComponent : public juce::Component, private juce::Timer
 {
 public:
+    /** ON/OFF (parâmetro de áudio real, por botão) e "qual filtro está
+        selecionado pro gráfico" são estados separados de propósito - dois
+        filtros podem estar ON ao mesmo tempo, mas só um fica selecionado. */
+    enum class SelectedFilter { Pre, Post, Hpf };
+
     EQGraphComponent(juce::AudioProcessorValueTreeState& stateIn, double sampleRateIn)
         : apvts(stateIn), sampleRate(sampleRateIn > 0.0 ? sampleRateIn : 44100.0)
     {
@@ -27,6 +32,7 @@ public:
         nodes.push_back({ "HighCutFreq", "", "", "HighCutOn", false, false, juce::Colour(0xffff5b5b) });
 
         resetButton.setMomentary(true);
+        resetButton.setShowLed(false);
         resetButton.onClick = [this] { resetSelectedEQ(); };
         addAndMakeVisible(resetButton);
 
@@ -36,11 +42,12 @@ public:
         startTimerHz(30);
     }
 
-    /** Troca qual EQ (Pre ou Post) é mostrado/editado no gráfico. Não afeta
-        o outro EQ nem o processamento de áudio - é só estado da GUI. */
-    void setSelectedEQ(bool showPre)
+    /** Troca qual filtro (Pre EQ, Post EQ ou HPF) é mostrado/editado no
+        gráfico. Não afeta o processamento de áudio nem os outros filtros -
+        é só estado da GUI. */
+    void setSelectedFilter(SelectedFilter f)
     {
-        isPre = showPre;
+        selected = f;
         draggingIndex = hoverIndex = -1;
         repaint();
     }
@@ -64,6 +71,9 @@ public:
 
     void mouseDown(const juce::MouseEvent& e) override
     {
+        if (selected == SelectedFilter::Hpf)
+            return; // HPF não tem nós arrastáveis (filtro fixo, só on/off)
+
         auto area = getLocalBounds().toFloat().reduced(2.0f);
         int hit = findNodeNear(e.position, area);
         draggingIndex = hit;
@@ -114,6 +124,9 @@ public:
 
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override
     {
+        if (selected == SelectedFilter::Hpf)
+            return;
+
         auto area = getLocalBounds().toFloat().reduced(2.0f);
         int hit = findNodeNear(e.position, area);
         if (hit < 0 || !nodes[(size_t) hit].hasQ)
@@ -139,7 +152,7 @@ private:
     static constexpr float minDb = -15.0f;
     static constexpr float maxDb = 15.0f;
 
-    juce::String prefix() const { return isPre ? "pre" : "post"; }
+    juce::String prefix() const { return selected == SelectedFilter::Pre ? "pre" : "post"; }
     juce::String fullId(const juce::String& base) const { return prefix() + base; }
 
     float freqToX(float freq, juce::Rectangle<float> area) const
@@ -234,6 +247,21 @@ private:
         return juce::Decibels::gainToDecibels((float) mag, -60.0f);
     }
 
+    /** Curva do HPF (filtro fixo do detector, ~120Hz - mesmo valor usado no
+        áudio, ver VocalCompressorDSP::highPassDetector) - sem nós, só liga/
+        desliga via o parâmetro "hpf". */
+    float hpfMagnitudeDb(float freq) const
+    {
+        auto* raw = apvts.getRawParameterValue("hpf");
+        if (raw == nullptr || raw->load() <= 0.5f)
+            return 0.0f;
+
+        constexpr float hpfFreq = 120.0f;
+        double mag = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, hpfFreq)
+                         ->getMagnitudeForFrequency((double) freq, sampleRate);
+        return juce::Decibels::gainToDecibels((float) mag, -60.0f);
+    }
+
     void drawCurve(juce::Graphics& g, juce::Rectangle<float> area)
     {
         juce::Path curve;
@@ -242,7 +270,8 @@ private:
         {
             float t = (float) i / (float) steps;
             float freq = minFreq * std::pow(maxFreq / minFreq, t);
-            float db = juce::jlimit(minDb, maxDb, combinedMagnitudeDb(freq));
+            float db = juce::jlimit(minDb, maxDb,
+                selected == SelectedFilter::Hpf ? hpfMagnitudeDb(freq) : combinedMagnitudeDb(freq));
             float x = area.getX() + t * area.getWidth();
             float y = dbToY(db, area);
 
@@ -252,7 +281,9 @@ private:
                 curve.lineTo(x, y);
         }
 
-        auto curveColour = isPre ? juce::Colour(0xffff9a3c) : NFLookAndFeel::kPurple;
+        auto curveColour = selected == SelectedFilter::Pre    ? juce::Colour(0xffff9a3c)
+                          : selected == SelectedFilter::Post   ? NFLookAndFeel::kPurple
+                                                                : juce::Colour(0xffff5b5b);
         g.setColour(curveColour.withAlpha(0.35f));
         g.strokePath(curve, juce::PathStrokeType(4.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         g.setColour(curveColour);
@@ -261,6 +292,9 @@ private:
 
     void drawNodes(juce::Graphics& g, juce::Rectangle<float> area)
     {
+        if (selected == SelectedFilter::Hpf)
+            return; // sem nós arrastáveis no modo HPF
+
         for (int i = 0; i < (int) nodes.size(); ++i)
         {
             auto& n = nodes[(size_t) i];
@@ -277,6 +311,9 @@ private:
 
     void drawTooltip(juce::Graphics& g, juce::Rectangle<float> area)
     {
+        if (selected == SelectedFilter::Hpf)
+            return;
+
         int idx = draggingIndex >= 0 ? draggingIndex : (hoverIndex >= 0 ? hoverIndex : -1);
         if (idx < 0)
             return;
@@ -314,8 +351,12 @@ private:
         mostrado/editado agora. */
     void drawHeader(juce::Graphics& g, juce::Rectangle<float> /*area*/)
     {
-        auto curveColour = isPre ? juce::Colour(0xffff9a3c) : NFLookAndFeel::kPurple;
-        juce::String label = isPre ? "PRE EQ" : "POST EQ";
+        auto curveColour = selected == SelectedFilter::Pre    ? juce::Colour(0xffff9a3c)
+                          : selected == SelectedFilter::Post   ? NFLookAndFeel::kPurple
+                                                                : juce::Colour(0xffff5b5b);
+        juce::String label = selected == SelectedFilter::Pre  ? "PRE EQ"
+                            : selected == SelectedFilter::Post ? "POST EQ"
+                                                                : "HPF";
         auto labelBounds = juce::Rectangle<float>(resetButton.getRight() + 6.0f, (float) resetButton.getY(),
                                                     70.0f, (float) resetButton.getHeight());
         g.setColour(curveColour);
@@ -324,10 +365,18 @@ private:
                           juce::Justification::centredLeft, 1);
     }
 
-    /** Reseta pro valor default SOMENTE as bandas do EQ atualmente
-        selecionado (Pre ou Post) - nunca mexe no outro estágio. */
+    /** Reseta pro valor default SOMENTE o filtro atualmente selecionado
+        (Pre, Post ou HPF) - nunca mexe nos outros. */
     void resetSelectedEQ()
     {
+        if (selected == SelectedFilter::Hpf)
+        {
+            if (auto* param = apvts.getParameter("hpf"))
+                param->setValueNotifyingHost(param->getDefaultValue());
+            repaint();
+            return;
+        }
+
         static const char* bases[] = {
             "LowCutOn", "LowCutFreq", "LowShelfFreq", "LowShelfGain",
             "PeakFreq", "PeakGain", "PeakQ",
@@ -346,7 +395,7 @@ private:
     juce::AudioProcessorValueTreeState& apvts;
     double sampleRate;
     std::vector<Node> nodes;
-    bool isPre = true;
+    SelectedFilter selected = SelectedFilter::Pre;
     int draggingIndex = -1;
     int hoverIndex = -1;
     HardwareButton resetButton { "RESET" };

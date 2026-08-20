@@ -7,8 +7,8 @@
 #include "UI/DbReadout.h"
 #include "UI/RTADisplay.h"
 #include "UI/ValueReadout.h"
-#include "UI/CaptionLabel.h"
 #include "UI/HardwareButton.h"
+#include "UI/BypassIndicator.h"
 #include "UI/EQGraphComponent.h"
 
 /** Segura a faceplate + todos os controles, sempre no tamanho nativo da
@@ -59,20 +59,22 @@ private:
     LevelMeter inputMeter, outputMeter;
     DbReadout inputReadout, outputReadout;
 
-    // Botões físicos (corpo escuro, aro roxo, LED verde-limão quando ON) -
-    // ver UI/HardwareButton.h. Três push simples dentro da caixa FILTER:
-    // PRE EQ e POST EQ cada clique liga/desliga (parâmetro real, via
-    // attachment) E SELECIONA aquele EQ pro gráfico (não são radio buttons -
-    // podem estar os dois ON ao mesmo tempo, só um fica SELECTED por vez).
-    // HPF só liga/desliga o próprio filtro, nunca mexe na seleção.
+    // Botões físicos compactos (corpo sempre preto/grafite, LED circular
+    // à esquerda que acende quando ON) - ver UI/HardwareButton.h. Três
+    // dentro da caixa FILTER: PRE EQ, POST EQ e HPF - cada clique liga/
+    // desliga o próprio estágio (parâmetro real, via attachment) E
+    // seleciona esse filtro pro gráfico (não são radio buttons - podem
+    // estar os três ON ao mesmo tempo, só um fica SELECTED por vez).
     HardwareButton hpfButton { "HPF" };
     HardwareButton preOnButton { "PRE EQ" }, postOnButton { "POST EQ" };
 
-    // BYPASS: rótulo "BYPASS" acima, botão físico embaixo - o grande
-    // retângulo preto do topo da faceplate é outro elemento, reservado pra
-    // função futura, e não deve ser tocado.
-    CaptionLabel bypassLabel;
+    // BYPASS: a palavra "BYPASS" e a caixa preta já vêm impressas na
+    // faceplate - a caixa preta continua mostrando o indicador piscando
+    // (BypassIndicator), igual antes. O botão físico de verdade é um
+    // elemento nosso à parte, encaixado embaixo do texto "BYPASS" impresso
+    // (não dentro da caixa preta).
     HardwareButton bypassButton { "" };
+    BypassIndicator bypassIndicator;
 
     RTADisplay rtaDisplay;
     EQGraphComponent eqGraph;
