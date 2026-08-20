@@ -6,6 +6,7 @@
 #include "UI/LevelMeter.h"
 #include "UI/DbReadout.h"
 #include "UI/RTADisplay.h"
+#include "UI/BypassIndicator.h"
 
 /** Segura a faceplate + todos os controles, sempre no tamanho nativo da
     imagem (1525x920). A janela em si pode ser redimensionada livremente -
@@ -59,6 +60,7 @@ private:
     juce::ToggleButton bypassButton { "ON" };
 
     RTADisplay rtaDisplay;
+    BypassIndicator bypassIndicator;
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;

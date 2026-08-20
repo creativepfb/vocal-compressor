@@ -5,7 +5,7 @@
 
 /** RTA em barras (estilo analisador de frequência clássico), lido do
     SpectrumAnalyzer do processor. A caixa/moldura já vem desenhada na
-    faceplate - aqui só desenha as barras por cima. */
+    faceplate - aqui desenha as barras + a régua de frequência por cima. */
 class RTADisplay : public juce::Component, private juce::Timer
 {
 public:
@@ -17,8 +17,12 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        auto area = getLocalBounds().toFloat().reduced(4.0f);
-        drawBars(g, area);
+        auto bounds = getLocalBounds().toFloat().reduced(4.0f);
+        auto labelArea = bounds.removeFromBottom(labelHeight);
+
+        drawGrid(g, bounds);
+        drawBars(g, bounds);
+        drawLabels(g, labelArea, bounds);
     }
 
 private:
@@ -27,6 +31,37 @@ private:
     static constexpr float minDb = -70.0f;
     static constexpr float maxDb = 0.0f;
     static constexpr int numBars = 32;
+    static constexpr float labelHeight = 14.0f;
+
+    static float freqToX(float freq, juce::Rectangle<float> area)
+    {
+        float t = std::log10(freq / minFreq) / std::log10(maxFreq / minFreq);
+        return area.getX() + t * area.getWidth();
+    }
+
+    void drawGrid(juce::Graphics& g, juce::Rectangle<float> area)
+    {
+        g.setColour(juce::Colour(0xff1a2a1a));
+        for (float f : { 63.0f, 125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f, 8000.0f })
+            g.drawVerticalLine(juce::roundToInt(freqToX(f, area)), area.getY(), area.getBottom());
+    }
+
+    void drawLabels(juce::Graphics& g, juce::Rectangle<float> labelArea, juce::Rectangle<float> barsArea)
+    {
+        g.setFont(juce::Font(juce::FontOptions(9.0f, juce::Font::bold)));
+        g.setColour(NFLookAndFeel::kTextDim);
+
+        struct FreqLabel { float freq; const char* text; };
+        static const FreqLabel labels[] = { { 31, "31" }, { 63, "63" }, { 125, "125" }, { 250, "250" },
+                                             { 500, "500" }, { 1000, "1k" }, { 2000, "2k" }, { 4000, "4k" },
+                                             { 8000, "8k" }, { 16000, "16k" } };
+        for (auto& l : labels)
+        {
+            float x = freqToX(l.freq, barsArea);
+            g.drawFittedText(l.text, juce::roundToInt(x - 14.0f), (int) labelArea.getY(), 28, (int) labelArea.getHeight(),
+                              juce::Justification::centred, 1);
+        }
+    }
 
     void drawBars(juce::Graphics& g, juce::Rectangle<float> area)
     {

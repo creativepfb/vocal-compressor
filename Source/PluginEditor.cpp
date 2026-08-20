@@ -53,6 +53,10 @@ namespace
     constexpr float bypassY0 = 0.790217f, bypassY1 = 0.833696f;
     constexpr float rtaX0 = 0.252459f, rtaX1 = 0.752787f;
     constexpr float rtaY0 = 0.677174f, rtaY1 = 0.905435f;
+
+    // Caixa preta do topo (indicador de Bypass)
+    constexpr float topBoxX0 = 0.626885f, topBoxX1 = 0.886557f;
+    constexpr float topBoxY0 = 0.057609f, topBoxY1 = 0.125f;
 }
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
@@ -60,7 +64,8 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     : AudioProcessorEditor(&p), audioProcessor(p), grMeter(p),
       inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb),
       inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb),
-      rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0)
+      rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
+      bypassIndicator(*p.apvts.getRawParameterValue("bypass"))
 {
     content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate3rta_png, BinaryData::faceplate3rta_pngSize);
     nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::botaopng126px_png, BinaryData::botaopng126px_pngSize);
@@ -82,6 +87,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     content.addAndMakeVisible(hpfButton);
     content.addAndMakeVisible(bypassButton);
     content.addAndMakeVisible(rtaDisplay);
+    content.addAndMakeVisible(bypassIndicator);
 
     auto& apvts = audioProcessor.apvts;
     thresholdAttach = std::make_unique<SliderAttachment>(apvts, "threshold", thresholdSlider);
@@ -103,7 +109,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     setConstrainer(&constrainer);
     setResizable(true, true);
 
-    setSize(juce::roundToInt(nativeW * 0.68f), juce::roundToInt(nativeH * 0.68f));
+    setSize(juce::roundToInt(nativeW * 0.85f), juce::roundToInt(nativeH * 0.85f));
 }
 
 VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
@@ -122,7 +128,7 @@ void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& sli
     auto& label = valueLabels[index];
     label.setJustificationType(juce::Justification::centred);
     label.setColour(juce::Label::textColourId, NFLookAndFeel::kGreen);
-    label.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
+    label.setFont(juce::Font(juce::FontOptions(22.0f, juce::Font::bold)));
     label.setInterceptsMouseClicks(false, false);
     content.addAndMakeVisible(label);
 }
@@ -173,4 +179,6 @@ void VocalCompressorAudioProcessorEditor::resized()
     hpfButton.setBounds(fracRect(w, h, filterX0, filterY0, filterX1, filterY1));
     bypassButton.setBounds(fracRect(w, h, bypassX0, bypassY0, bypassX1, bypassY1));
     rtaDisplay.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
+
+    bypassIndicator.setBounds(fracRect(w, h, topBoxX0, topBoxY0, topBoxX1, topBoxY1));
 }
