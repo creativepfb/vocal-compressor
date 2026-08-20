@@ -48,12 +48,14 @@ public:
         // partir dali, não o ângulo absoluto.
         auto rotationFromRest = sliderPos * (rotaryEndAngle - rotaryStartAngle);
 
-        // Sem encolher: a imagem já foi feita no tamanho certo pra faceplate,
-        // então desenhamos ela na resolução nativa (bounds já vem calibrado
-        // pra isso no editor).
-        float diameter = juce::jmin(bounds.getWidth(), bounds.getHeight());
-        float imgSize = (float) knobImage.getWidth();
-        float scale = diameter / imgSize;
+        // O knob sempre desenha na resolução nativa da imagem (sem escalar),
+        // INDEPENDENTE do tamanho do componente (bounds). O componente em si
+        // é proposital maior que a imagem (dá espaço pro arco não ser
+        // cortado pelo clipping automático do JUCE nas bordas do
+        // componente) - só a imagem fica travada em 126x126.
+        float diameter = (float) knobImage.getWidth();
+        float imgSize = diameter;
+        float scale = 1.0f;
 
         auto transform = juce::AffineTransform::rotation(rotationFromRest, imgSize * 0.5f, imgSize * 0.5f)
                               .scaled(scale)

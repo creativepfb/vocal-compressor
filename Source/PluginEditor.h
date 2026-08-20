@@ -7,6 +7,7 @@
 #include "UI/DbReadout.h"
 #include "UI/RTADisplay.h"
 #include "UI/BypassIndicator.h"
+#include "UI/ValueReadout.h"
 
 /** Segura a faceplate + todos os controles, sempre no tamanho nativo da
     imagem (1525x920). A janela em si pode ser redimensionada livremente -
@@ -50,7 +51,7 @@ private:
 
     juce::Slider thresholdSlider, ratioSlider, attackSlider,
                  releaseSlider, driveSlider, makeupSlider, mixSlider;
-    juce::Label valueLabels[numKnobs];
+    ValueReadout valueLabels[numKnobs];
 
     GainReductionMeter grMeter;
     LevelMeter inputMeter, outputMeter;

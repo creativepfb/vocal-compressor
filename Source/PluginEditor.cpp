@@ -21,14 +21,13 @@ namespace
     constexpr float knobCentresX[7] = { 0.192131f, 0.300328f, 0.405246f, 0.502951f,
                                          0.601311f, 0.700984f, 0.802623f };
     constexpr float knobCentreY = 0.382609f;
-    // Tamanho ABSOLUTO em pixels (na resolução nativa 1525x920), não fração.
-    // BUG que existia antes: usar uma fração calculada sobre a LARGURA
-    // (126/1525) como largura E altura do quadrado do knob - como largura
-    // (1525) e altura (920) da faceplate são diferentes, a mesma fração
-    // aplicada nos dois eixos gerava um retângulo não quadrado (126 de
-    // largura x só ~76 de altura), e o código pega o menor lado pra
-    // desenhar o círculo - por isso saía menor que devia.
-    constexpr int knobSizePx = 126;
+    // O componente do slider precisa ser MAIOR que a imagem do knob (126px),
+    // senão o arco (que tem raio maior que o knob, de propósito) fica
+    // cortado pelo clipping automático do JUCE nas bordas do componente.
+    // A imagem em si continua sendo desenhada em 126x126 fixo (ver
+    // NFLookAndFeel::drawRotarySlider) - só a área clicável/de desenho
+    // fica maior, dando espaço pro arco existir ao redor sem ser cortado.
+    constexpr int knobComponentSizePx = 150;
 
     constexpr float valueBoxTop = 0.540217f;
     constexpr float valueBoxBottom = 0.591304f;
@@ -129,22 +128,17 @@ void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& sli
 
     slider.onValueChange = [this, index] { updateValueLabel(index); };
 
-    auto& label = valueLabels[index];
-    label.setJustificationType(juce::Justification::centred);
-    label.setColour(juce::Label::textColourId, NFLookAndFeel::kKnobGreen);
-    label.setFont(juce::Font(juce::FontOptions(38.0f, juce::Font::bold)));
-    label.setMinimumHorizontalScale(0.75f);
-    label.setBorderSize(juce::BorderSize<int>(0, 1, 0, 1));
-    label.setInterceptsMouseClicks(false, false);
-    content.addAndMakeVisible(label);
+    auto& readout = valueLabels[index];
+    readout.setFontHeight(36.0f);
+    readout.setInterceptsMouseClicks(false, false);
+    content.addAndMakeVisible(readout);
 }
 
 void VocalCompressorAudioProcessorEditor::updateValueLabel(int index)
 {
     juce::Slider* sliders[numKnobs] = { &thresholdSlider, &ratioSlider, &attackSlider,
                                          &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
-    valueLabels[index].setText(juce::String(sliders[index]->getValue(), decimalPlaces[index]),
-                                juce::dontSendNotification);
+    valueLabels[index].setValueText(juce::String(sliders[index]->getValue(), decimalPlaces[index]));
 }
 
 void VocalCompressorAudioProcessorEditor::paint(juce::Graphics& g)
@@ -170,7 +164,8 @@ void VocalCompressorAudioProcessorEditor::resized()
     {
         int cx = juce::roundToInt(knobCentresX[i] * (float) w);
         int cy = juce::roundToInt(knobCentreY * (float) h);
-        sliders[i]->setBounds(cx - knobSizePx / 2, cy - knobSizePx / 2, knobSizePx, knobSizePx);
+        sliders[i]->setBounds(cx - knobComponentSizePx / 2, cy - knobComponentSizePx / 2,
+                               knobComponentSizePx, knobComponentSizePx);
 
         valueLabels[i].setBounds(fracRectCentred(w, h, knobCentresX[i],
                                                   (valueBoxTop + valueBoxBottom) * 0.5f,
@@ -180,7 +175,7 @@ void VocalCompressorAudioProcessorEditor::resized()
     DBG("Editor: " << getWidth() << " x " << getHeight());
     DBG("Knob image: " << (nfLookAndFeel.knobImage.isValid() ? nfLookAndFeel.knobImage.getWidth() : -1)
                         << " x " << (nfLookAndFeel.knobImage.isValid() ? nfLookAndFeel.knobImage.getHeight() : -1));
-    DBG("Knob rendered: " << knobSizePx << " x " << knobSizePx << " (na area de conteudo nativa 1525x920)");
+    DBG("Knob rendered: 126 x 126 (componente/area do arco: " << knobComponentSizePx << " x " << knobComponentSizePx << ")");
     DBG("UI scale (content vs janela real): " << ((float) getWidth() / (float) nativeW));
 
     inputMeter.setBounds(fracRect(w, h, inputMeterX0, meterY0, inputMeterX1, meterY1));
