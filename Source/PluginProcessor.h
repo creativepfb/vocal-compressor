@@ -85,5 +85,8 @@ private:
     std::atomic<float>* highShelfFreqParam = nullptr;
     std::atomic<float>* highShelfGainParam = nullptr;
 
+    std::atomic<float>* highCutOnParam   = nullptr;
+    std::atomic<float>* highCutFreqParam = nullptr;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocalCompressorAudioProcessor)
 };

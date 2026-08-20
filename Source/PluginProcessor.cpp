@@ -26,6 +26,8 @@ VocalCompressorAudioProcessor::VocalCompressorAudioProcessor()
     peakQParam         = apvts.getRawParameterValue("peakQ");
     highShelfFreqParam = apvts.getRawParameterValue("highShelfFreq");
     highShelfGainParam = apvts.getRawParameterValue("highShelfGain");
+    highCutOnParam     = apvts.getRawParameterValue("highCutOn");
+    highCutFreqParam   = apvts.getRawParameterValue("highCutFreq");
 
     for (auto& v : waveformBuffer)
         v.store(0.0f);
@@ -106,6 +108,13 @@ VocalCompressorAudioProcessor::createParameterLayout()
         "highShelfGain", "High Shelf Gain",
         juce::NormalisableRange<float>(-15.0f, 15.0f, 0.1f), 0.0f, "dB"));
 
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "highCutOn", "High Cut On", false));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "highCutFreq", "High Cut Freq",
+        juce::NormalisableRange<float>(1000.0f, 20000.0f, 1.0f, 0.4f), 12000.0f, "Hz"));
+
     return { params.begin(), params.end() };
 }
 
@@ -140,12 +149,13 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
                                releaseParam->load(), driveParam->load(), makeupParam->load(), hpfOn);
 
     bool lowCutOn = lowCutOnParam->load() > 0.5f;
+    bool highCutOn = highCutOnParam->load() > 0.5f;
     eqL.setParameters(lowCutOn, lowCutFreqParam->load(), lowShelfFreqParam->load(), lowShelfGainParam->load(),
                        peakFreqParam->load(), peakGainParam->load(), peakQParam->load(),
-                       highShelfFreqParam->load(), highShelfGainParam->load());
+                       highShelfFreqParam->load(), highShelfGainParam->load(), highCutOn, highCutFreqParam->load());
     eqR.setParameters(lowCutOn, lowCutFreqParam->load(), lowShelfFreqParam->load(), lowShelfGainParam->load(),
                        peakFreqParam->load(), peakGainParam->load(), peakQParam->load(),
-                       highShelfFreqParam->load(), highShelfGainParam->load());
+                       highShelfFreqParam->load(), highShelfGainParam->load(), highCutOn, highCutFreqParam->load());
 
     float inPeak = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)

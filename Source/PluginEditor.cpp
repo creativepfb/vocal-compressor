@@ -68,6 +68,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
       inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb),
       inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb),
       rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
+      eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
       bypassIndicator(*p.apvts.getRawParameterValue("bypass"))
 {
     content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate3rta_png, BinaryData::faceplate3rta_pngSize);
@@ -90,6 +91,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     content.addAndMakeVisible(hpfButton);
     content.addAndMakeVisible(bypassButton);
     content.addAndMakeVisible(rtaDisplay);
+    content.addAndMakeVisible(eqGraph); // por cima do RTA, de proposito
     content.addAndMakeVisible(bypassIndicator);
 
     auto& apvts = audioProcessor.apvts;
@@ -189,6 +191,7 @@ void VocalCompressorAudioProcessorEditor::resized()
     hpfButton.setBounds(fracRect(w, h, filterX0, filterY0, filterX1, filterY1));
     bypassButton.setBounds(fracRect(w, h, bypassX0, bypassY0, bypassX1, bypassY1));
     rtaDisplay.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
+    eqGraph.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
 
     bypassIndicator.setBounds(fracRect(w, h, topBoxX0, topBoxY0, topBoxX1, topBoxY1));
 }

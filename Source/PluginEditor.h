@@ -8,6 +8,7 @@
 #include "UI/RTADisplay.h"
 #include "UI/BypassIndicator.h"
 #include "UI/ValueReadout.h"
+#include "UI/EQGraphComponent.h"
 
 /** Segura a faceplate + todos os controles, sempre no tamanho nativo da
     imagem (1525x920). A janela em si pode ser redimensionada livremente -
@@ -61,6 +62,7 @@ private:
     juce::ToggleButton bypassButton { "ON" };
 
     RTADisplay rtaDisplay;
+    EQGraphComponent eqGraph;
     BypassIndicator bypassIndicator;
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
