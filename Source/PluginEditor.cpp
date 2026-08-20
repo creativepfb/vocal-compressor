@@ -19,11 +19,12 @@ namespace
 
     constexpr float knobCentresX[7] = { 0.17887f, 0.27173f, 0.36756f, 0.46339f, 0.55863f, 0.65446f, 0.74821f };
     constexpr float knobCentreY = 0.546656f;
-    // O círculo preto desenhado na faceplate mede só 99px (0.0589 de 1680),
-    // mas o knob precisa estourar um pouco pra fora dele e chegar perto dos
-    // ticks (medidos a raio 70px) - senão fica pequeno e "perdido" no meio
-    // do anel de marcações. Aqui uso raio ~59.5px (diâmetro ~119px).
-    constexpr float knobDiameter = 119.0f / 1680.0f;
+    // Bem maior que o círculo preto (99px) e maior que o raio dos ticks
+    // (70px) de propósito - o knob (componente filho) sempre desenha por
+    // cima do fundo, não tem problema ele passar por cima das marcações.
+    // Raio ~75px (diâmetro ~150px) - o máximo que dá pra crescer sem os
+    // knobs vizinhos (Threshold/Ratio) encostarem um no outro.
+    constexpr float knobDiameter = 150.0f / 1680.0f;
 
     constexpr float valueBoxTop = 0.790047f;
     constexpr float valueBoxBottom = 0.874028f;
