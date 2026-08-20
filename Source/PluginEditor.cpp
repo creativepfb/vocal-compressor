@@ -22,9 +22,10 @@ namespace
     // Bem maior que o círculo preto (99px) e maior que o raio dos ticks
     // (70px) de propósito - o knob (componente filho) sempre desenha por
     // cima do fundo, não tem problema ele passar por cima das marcações.
-    // Raio ~75px (diâmetro ~150px) - o máximo que dá pra crescer sem os
-    // knobs vizinhos (Threshold/Ratio) encostarem um no outro.
-    constexpr float knobDiameter = 150.0f / 1680.0f;
+    // Limite físico: 156px é o menor espaçamento entre dois centros de knob
+    // nessa faceplate (Threshold-Ratio). Uso 154px pra chegar quase no talo
+    // sem eles se tocarem.
+    constexpr float knobDiameter = 154.0f / 1680.0f;
 
     constexpr float valueBoxTop = 0.790047f;
     constexpr float valueBoxBottom = 0.874028f;
