@@ -104,11 +104,15 @@ public:
             g.fillRoundedRectangle(offRect, cornerSize - 2.0f);
         }
 
+        // O texto do lado "ligado" vem do próprio texto do botão (ex.: "HPF",
+        // "ON"), pra dar pra reaproveisar esse desenho em vários switches.
+        auto onLabel = button.getButtonText().isNotEmpty() ? button.getButtonText() : juce::String("ON");
+
         g.setFont(juce::Font(juce::FontOptions(11.0f, juce::Font::bold)));
         g.setColour(isOn ? juce::Colour(0xff8a8a92) : kTextLight);
         g.drawFittedText("OFF", offRect.getSmallestIntegerContainer(), juce::Justification::centred, 1);
         g.setColour(isOn ? juce::Colour(0xff0a0a0c) : juce::Colour(0xff6a6a72));
-        g.drawFittedText("HPF", onRect.getSmallestIntegerContainer(), juce::Justification::centred, 1);
+        g.drawFittedText(onLabel, onRect.getSmallestIntegerContainer(), juce::Justification::centred, 1);
     }
 
     juce::Font getLabelFont(juce::Label&) override

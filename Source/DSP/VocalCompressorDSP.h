@@ -5,7 +5,9 @@
 /**
     Compressor de voz com release adaptativo (program-dependent) e
     saturação com bastante impacto real no caráter/volume percebido.
-    Uma instância por canal de áudio.
+    Detector pode passar por um high-pass (Filtro/HPF) pra não deixar
+    graves/plosivas dispararem a compressão à toa. Uma instância por
+    canal de áudio.
 */
 class VocalCompressorDSP
 {
@@ -17,15 +19,18 @@ public:
         envelope = 0.0f;
         smoothedGainDb = 0.0f;
         transientTracker = 0.0f;
+        hpfLowpassState = 0.0f;
 
         attackCoef       = calcCoef(5.0f);
         fastReleaseCoef  = calcCoef(50.0f);
         slowReleaseCoef  = calcCoef(400.0f);
         transientCoef    = calcCoef(30.0f);
+        hpfCoef          = onePoleCoef(120.0f);
     }
 
     void setParameters(float thresholdDbIn, float ratioIn, float attackMs,
-                        float releaseCharacterPercent, float driveIn, float makeupDbIn)
+                        float releaseCharacterPercent, float driveIn, float makeupDbIn,
+                        bool detectorHpfOnIn)
     {
         thresholdDb = thresholdDbIn;
         ratio = juce::jmax(1.0f, ratioIn);
@@ -33,11 +38,13 @@ public:
         releaseBlend = juce::jlimit(0.0f, 1.0f, releaseCharacterPercent / 100.0f);
         driveAmount = juce::jmax(1.0f, driveIn);
         makeupGainLinear = dbToLinear(makeupDbIn);
+        detectorHpfOn = detectorHpfOnIn;
     }
 
     float processSample(float input)
     {
-        float rectified = std::abs(input);
+        float detectorSignal = detectorHpfOn ? highPassDetector(input) : input;
+        float rectified = std::abs(detectorSignal);
 
         float releaseCoef = getAdaptiveRelease(rectified);
         float coef = (rectified > envelope) ? attackCoef : releaseCoef;
@@ -64,6 +71,17 @@ private:
     float calcCoef(float timeMs) const
     {
         return 1.0f - std::exp(-1.0f / (0.001f * timeMs * (float) fs));
+    }
+
+    float onePoleCoef(float freqHz) const
+    {
+        return 1.0f - std::exp(-2.0f * juce::MathConstants<float>::pi * freqHz / (float) fs);
+    }
+
+    float highPassDetector(float x)
+    {
+        hpfLowpassState += (x - hpfLowpassState) * hpfCoef;
+        return x - hpfLowpassState;
     }
 
     float getAdaptiveRelease(float rectified)
@@ -109,6 +127,11 @@ private:
     float driveAmount = 1.5f;
     float makeupGainLinear = 1.0f;
     float releaseBlend = 0.5f;
+
+    // Detector high-pass (Filtro/HPF)
+    bool detectorHpfOn = false;
+    float hpfLowpassState = 0.0f;
+    float hpfCoef = 0.0f;
 
     // Suavização final do ganho antes de aplicar (evita zipper noise).
     static constexpr float smoothingSpeed = 0.35f;

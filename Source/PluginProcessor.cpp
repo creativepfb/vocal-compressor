@@ -14,6 +14,11 @@ VocalCompressorAudioProcessor::VocalCompressorAudioProcessor()
     driveParam     = apvts.getRawParameterValue("drive");
     makeupParam    = apvts.getRawParameterValue("makeup");
     mixParam       = apvts.getRawParameterValue("mix");
+    hpfParam       = apvts.getRawParameterValue("hpf");
+    bypassParam    = apvts.getRawParameterValue("bypass");
+
+    for (auto& v : waveformBuffer)
+        v.store(0.0f);
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout
@@ -49,6 +54,12 @@ VocalCompressorAudioProcessor::createParameterLayout()
         "mix", "Mix",
         juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 100.0f, "%"));
 
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "hpf", "Detector HPF (Filter)", false));
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "bypass", "Bypass", false));
+
     return { params.begin(), params.end() };
 }
 
@@ -68,10 +79,13 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 {
     juce::ScopedNoDenormals noDenormals;
 
+    bool hpfOn = hpfParam->load() > 0.5f;
+    bool bypassed = bypassParam->load() > 0.5f;
+
     compressorL.setParameters(thresholdParam->load(), ratioParam->load(), attackParam->load(),
-                               releaseParam->load(), driveParam->load(), makeupParam->load());
+                               releaseParam->load(), driveParam->load(), makeupParam->load(), hpfOn);
     compressorR.setParameters(thresholdParam->load(), ratioParam->load(), attackParam->load(),
-                               releaseParam->load(), driveParam->load(), makeupParam->load());
+                               releaseParam->load(), driveParam->load(), makeupParam->load(), hpfOn);
 
     float inPeak = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
@@ -83,28 +97,43 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 
     float mix = mixParam->load() / 100.0f;
 
-    for (int i = 0; i < buffer.getNumSamples(); ++i)
+    if (!bypassed)
     {
-        float dryL = left[i];
-        float wetL = compressorL.processSample(dryL);
-        left[i] = dryL * (1.0f - mix) + wetL * mix;
-
-        if (right != nullptr)
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
-            float dryR = right[i];
-            float wetR = compressorR.processSample(dryR);
-            right[i] = dryR * (1.0f - mix) + wetR * mix;
-        }
-    }
+            float dryL = left[i];
+            float wetL = compressorL.processSample(dryL);
+            left[i] = dryL * (1.0f - mix) + wetL * mix;
 
-    // Para o medidor de GR na GUI: usa o maior corte entre os canais (valores negativos)
-    currentGainReductionDb.store(
-        juce::jmin(compressorL.getLastGainReductionDb(), compressorR.getLastGainReductionDb()));
+            if (right != nullptr)
+            {
+                float dryR = right[i];
+                float wetR = compressorR.processSample(dryR);
+                right[i] = dryR * (1.0f - mix) + wetR * mix;
+            }
+        }
+
+        // Para o medidor de GR na GUI: usa o maior corte entre os canais (valores negativos)
+        currentGainReductionDb.store(
+            juce::jmin(compressorL.getLastGainReductionDb(), compressorR.getLastGainReductionDb()));
+    }
+    else
+    {
+        currentGainReductionDb.store(0.0f);
+    }
 
     float outPeak = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         outPeak = juce::jmax(outPeak, buffer.getMagnitude(ch, 0, buffer.getNumSamples()));
     currentOutputDb.store(juce::Decibels::gainToDecibels(outPeak, -60.0f));
+
+    // RTA/waveform: um ponto por bloco, normalizado 0..1 na mesma faixa dos
+    // medidores (0 a -60 dB).
+    float waveformFraction = juce::jlimit(0.0f, 1.0f,
+        (juce::Decibels::gainToDecibels(outPeak, -60.0f) + 60.0f) / 60.0f);
+    int writeIdx = waveformWriteIndex.load();
+    waveformBuffer[(size_t) writeIdx].store(waveformFraction);
+    waveformWriteIndex.store((writeIdx + 1) % waveformBufferSize);
 }
 
 juce::AudioProcessorEditor* VocalCompressorAudioProcessor::createEditor()

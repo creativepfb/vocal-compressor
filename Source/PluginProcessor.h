@@ -32,10 +32,25 @@ public:
 
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
 
+    // Liga o bypass nativo do host (botão de bypass da DAW) ao nosso
+    // parâmetro "bypass", assim os dois ficam sempre sincronizados.
+    juce::AudioProcessorParameter* getBypassParameter() const override
+    {
+        return apvts.getParameter("bypass");
+    }
+
     juce::AudioProcessorValueTreeState apvts;
     std::atomic<float> currentGainReductionDb { 0.0f };
     std::atomic<float> currentInputDb { -60.0f };
     std::atomic<float> currentOutputDb { -60.0f };
+
+    // Buffer circular pro RTA/waveform da GUI: um ponto (0..1) por bloco de
+    // áudio processado. Escrita só no audio thread, leitura só na GUI - sem
+    // lock, só um índice atômico de escrita (dado "quase certo" já serve
+    // pra visualização, não precisa ser sample-accurate).
+    static constexpr int waveformBufferSize = 300;
+    std::array<std::atomic<float>, waveformBufferSize> waveformBuffer;
+    std::atomic<int> waveformWriteIndex { 0 };
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -49,6 +64,8 @@ private:
     std::atomic<float>* driveParam     = nullptr;
     std::atomic<float>* makeupParam    = nullptr;
     std::atomic<float>* mixParam       = nullptr;
+    std::atomic<float>* hpfParam       = nullptr;
+    std::atomic<float>* bypassParam    = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocalCompressorAudioProcessor)
 };

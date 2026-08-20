@@ -46,13 +46,22 @@ namespace
     // OUTPUT (direita)
     constexpr float outputMeterX0 = 0.926786f, outputMeterX1 = 0.95f;
     constexpr float outReadoutCx = 0.937f;
+
+    // Tamanho fixo da área da faceplate (a imagem em si, 65% de 1680x643).
+    // O resto da janela (abaixo disso) é uma faixa provisória desenhada por
+    // código - Filtro, Bypass e RTA - até a imagem nova (que já vai trazer
+    // esses elementos) chegar.
+    constexpr int faceplateW = 1092;
+    constexpr int faceplateH = 418;
+    constexpr int extraRowH = 110;
 }
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     VocalCompressorAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p), grMeter(p),
       inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb),
-      inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb)
+      inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb),
+      waveformDisplay(p.waveformBuffer, p.waveformWriteIndex)
 {
     faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplatev2_png, BinaryData::faceplatev2_pngSize);
     nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::knobpequenopng_png, BinaryData::knobpequenopng_pngSize);
@@ -70,6 +79,17 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     addAndMakeVisible(inputReadout);
     addAndMakeVisible(outputReadout);
 
+    addAndMakeVisible(hpfButton);
+    addAndMakeVisible(bypassButton);
+    for (auto* caption : { &filterCaption, &bypassCaption })
+    {
+        addAndMakeVisible(*caption);
+        caption->setJustificationType(juce::Justification::centred);
+        caption->setColour(juce::Label::textColourId, NFLookAndFeel::kTextDim);
+        caption->setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
+    }
+    addAndMakeVisible(waveformDisplay);
+
     auto& apvts = audioProcessor.apvts;
     thresholdAttach = std::make_unique<SliderAttachment>(apvts, "threshold", thresholdSlider);
     ratioAttach     = std::make_unique<SliderAttachment>(apvts, "ratio", ratioSlider);
@@ -78,12 +98,13 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     driveAttach     = std::make_unique<SliderAttachment>(apvts, "drive", driveSlider);
     makeupAttach    = std::make_unique<SliderAttachment>(apvts, "makeup", makeupSlider);
     mixAttach       = std::make_unique<SliderAttachment>(apvts, "mix", mixSlider);
+    hpfAttach       = std::make_unique<ButtonAttachment>(apvts, "hpf", hpfButton);
+    bypassAttach    = std::make_unique<ButtonAttachment>(apvts, "bypass", bypassButton);
 
     for (int i = 0; i < numKnobs; ++i)
         updateValueLabel(i);
 
-    // Imagem é 1680x643 - reduzida (65%) pra não abrir gigante na tela.
-    setSize(1092, 418);
+    setSize(faceplateW, faceplateH + extraRowH);
 }
 
 VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
@@ -119,13 +140,22 @@ void VocalCompressorAudioProcessorEditor::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colours::black);
     if (faceplate.isValid())
-        g.drawImage(faceplate, getLocalBounds().toFloat());
+        g.drawImage(faceplate, juce::Rectangle<float>(0.0f, 0.0f, (float) faceplateW, (float) faceplateH));
+
+    // Faixa provisória (Filtro / Bypass / RTA) até a faceplate nova chegar.
+    auto extraArea = juce::Rectangle<float>(0.0f, (float) faceplateH, (float) faceplateW, (float) extraRowH);
+    g.setColour(juce::Colour(0xff1c0f2e));
+    g.fillRect(extraArea);
+    g.setColour(juce::Colour(0xff3a2a54));
+    g.drawLine(0.0f, (float) faceplateH, (float) faceplateW, (float) faceplateH, 1.5f);
 }
 
 void VocalCompressorAudioProcessorEditor::resized()
 {
-    const int w = getWidth();
-    const int h = getHeight();
+    // Área da faceplate: fixa, não depende do tamanho da janela (que só
+    // cresce pra baixo, pra caber a faixa provisória).
+    const int w = faceplateW;
+    const int h = faceplateH;
 
     juce::Slider* sliders[numKnobs] = { &thresholdSlider, &ratioSlider, &attackSlider,
                                          &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
@@ -145,4 +175,19 @@ void VocalCompressorAudioProcessorEditor::resized()
 
     outputMeter.setBounds(fracRect(w, h, outputMeterX0, meterY0, outputMeterX1, meterY1));
     outputReadout.setBounds(fracRectCentred(w, h, outReadoutCx, inReadoutCy, readoutWidth, readoutHeight));
+
+    // --- Faixa provisória embaixo: Filtro | Bypass | RTA ---
+    auto extra = juce::Rectangle<int>(0, faceplateH, faceplateW, extraRowH).reduced(12);
+
+    auto filterCol = extra.removeFromLeft(90);
+    filterCaption.setBounds(filterCol.removeFromTop(16));
+    hpfButton.setBounds(filterCol.withSizeKeepingCentre(80, 22));
+
+    extra.removeFromLeft(14);
+    auto bypassCol = extra.removeFromLeft(90);
+    bypassCaption.setBounds(bypassCol.removeFromTop(16));
+    bypassButton.setBounds(bypassCol.withSizeKeepingCentre(80, 22));
+
+    extra.removeFromLeft(14);
+    waveformDisplay.setBounds(extra);
 }
