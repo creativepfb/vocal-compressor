@@ -21,10 +21,14 @@ namespace
     constexpr float knobCentresX[7] = { 0.192131f, 0.300328f, 0.405246f, 0.502951f,
                                          0.601311f, 0.700984f, 0.802623f };
     constexpr float knobCentreY = 0.382609f;
-    // Knob nativo (126px) já veio calibrado pela referência pra encaixar
-    // certo no círculo desenhado (118px) - usa direto, sem "estourar" por
-    // conta própria como antes.
-    constexpr float knobDiameter = 126.0f / 1525.0f;
+    // Tamanho ABSOLUTO em pixels (na resolução nativa 1525x920), não fração.
+    // BUG que existia antes: usar uma fração calculada sobre a LARGURA
+    // (126/1525) como largura E altura do quadrado do knob - como largura
+    // (1525) e altura (920) da faceplate são diferentes, a mesma fração
+    // aplicada nos dois eixos gerava um retângulo não quadrado (126 de
+    // largura x só ~76 de altura), e o código pega o menor lado pra
+    // desenhar o círculo - por isso saía menor que devia.
+    constexpr int knobSizePx = 126;
 
     constexpr float valueBoxTop = 0.540217f;
     constexpr float valueBoxBottom = 0.591304f;
@@ -162,11 +166,20 @@ void VocalCompressorAudioProcessorEditor::resized()
 
     for (int i = 0; i < numKnobs; ++i)
     {
-        sliders[i]->setBounds(fracRectCentred(w, h, knobCentresX[i], knobCentreY, knobDiameter, knobDiameter));
+        int cx = juce::roundToInt(knobCentresX[i] * (float) w);
+        int cy = juce::roundToInt(knobCentreY * (float) h);
+        sliders[i]->setBounds(cx - knobSizePx / 2, cy - knobSizePx / 2, knobSizePx, knobSizePx);
+
         valueLabels[i].setBounds(fracRectCentred(w, h, knobCentresX[i],
                                                   (valueBoxTop + valueBoxBottom) * 0.5f,
                                                   valueBoxWidth, valueBoxBottom - valueBoxTop));
     }
+
+    DBG("Editor: " << getWidth() << " x " << getHeight());
+    DBG("Knob image: " << (nfLookAndFeel.knobImage.isValid() ? nfLookAndFeel.knobImage.getWidth() : -1)
+                        << " x " << (nfLookAndFeel.knobImage.isValid() ? nfLookAndFeel.knobImage.getHeight() : -1));
+    DBG("Knob rendered: " << knobSizePx << " x " << knobSizePx << " (na area de conteudo nativa 1525x920)");
+    DBG("UI scale (content vs janela real): " << ((float) getWidth() / (float) nativeW));
 
     inputMeter.setBounds(fracRect(w, h, inputMeterX0, meterY0, inputMeterX1, meterY1));
     inputReadout.setBounds(fracRect(w, h, inReadoutX0, readoutY0, inReadoutX1, readoutY1));
