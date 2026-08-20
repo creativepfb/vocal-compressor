@@ -49,24 +49,17 @@ namespace
     constexpr float grMeterX0 = 0.913443f, grMeterX1 = 0.944918f;
     constexpr float grMeterY0 = 0.696739f, grMeterY1 = 0.894565f;
 
-    // Filtro / Bypass / RTA (linha de baixo)
-    constexpr float filterX0 = 0.034754f, filterX1 = 0.141639f;
-    constexpr float filterY0 = 0.789130f, filterY1 = 0.833696f;
-    constexpr float bypassX0 = 0.163934f, bypassX1 = 0.208525f;
-    constexpr float bypassY0 = 0.790217f, bypassY1 = 0.833696f;
     constexpr float rtaX0 = 0.252459f, rtaX1 = 0.752787f;
     constexpr float rtaY0 = 0.677174f, rtaY1 = 0.905435f;
 
-    // Seletor Pre/Post EQ: provisório, no vão acima do Filtro/Bypass (ainda
-    // não existe espaço desenhado na faceplate pra isso).
-    constexpr float eqSelX0 = 0.034754f, eqSelX1 = 0.208525f;
-    constexpr float preRowY0 = 0.685f, preRowY1 = 0.727f;
-    constexpr float postRowY0 = 0.735f, postRowY1 = 0.777f;
-    constexpr float selectButtonFrac = 0.68f; // fracao da largura pro botao SELECT, resto pro ON
+    // Caixa FILTER única (faceplate-4.png) - abriga os 3 botões push
+    // PRE EQ / POST EQ / HPF, empilhados verticalmente.
+    constexpr float filterX0 = 0.069508f, filterX1 = 0.180328f;
+    constexpr float filterY0 = 0.714130f, filterY1 = 0.901087f;
 
-    // Caixa preta do topo (indicador de Bypass)
-    constexpr float topBoxX0 = 0.626885f, topBoxX1 = 0.886557f;
-    constexpr float topBoxY0 = 0.057609f, topBoxY1 = 0.125f;
+    // Caixa BYPASS no topo (faceplate-4.png).
+    constexpr float bypassX0 = 0.736393f, bypassX1 = 0.847213f;
+    constexpr float bypassY0 = 0.067391f, bypassY1 = 0.113043f;
 }
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
@@ -75,10 +68,9 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
       inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb),
       inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb),
       rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
-      eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
-      bypassIndicator(*p.apvts.getRawParameterValue("bypass"))
+      eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0)
 {
-    content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate3rta_png, BinaryData::faceplate3rta_pngSize);
+    content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate4_png, BinaryData::faceplate4_pngSize);
     nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::botaopng126px_png, BinaryData::botaopng126px_pngSize);
 
     setLookAndFeel(&nfLookAndFeel);
@@ -98,21 +90,16 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     content.addAndMakeVisible(hpfButton);
     content.addAndMakeVisible(bypassButton);
 
-    // Seletor Pre/Post: SELECT (radio, so troca o que aparece no grafico -
-    // nao e parametro de audio) e ON (liga/desliga o DSP daquele estagio).
-    preSelectButton.setRadioGroupId(1);
-    postSelectButton.setRadioGroupId(1);
-    preSelectButton.setToggleState(true, juce::dontSendNotification);
-    preSelectButton.onClick = [this] { if (preSelectButton.getToggleState()) eqGraph.setSelectedEQ(true); };
-    postSelectButton.onClick = [this] { if (postSelectButton.getToggleState()) eqGraph.setSelectedEQ(false); };
-    content.addAndMakeVisible(preSelectButton);
-    content.addAndMakeVisible(postSelectButton);
+    // PRE EQ / POST EQ: cada clique liga/desliga o próprio estágio (feito
+    // pelo ButtonAttachment abaixo) E seleciona esse EQ pro gráfico -
+    // independentes entre si, não é radio group. HPF nunca mexe na seleção.
+    preOnButton.onClick  = [this] { eqGraph.setSelectedEQ(true); };
+    postOnButton.onClick = [this] { eqGraph.setSelectedEQ(false); };
     content.addAndMakeVisible(preOnButton);
     content.addAndMakeVisible(postOnButton);
 
     content.addAndMakeVisible(rtaDisplay);
     content.addAndMakeVisible(eqGraph); // por cima do RTA, de proposito
-    content.addAndMakeVisible(bypassIndicator);
 
     auto& apvts = audioProcessor.apvts;
     thresholdAttach = std::make_unique<SliderAttachment>(apvts, "threshold", thresholdSlider);
@@ -210,23 +197,19 @@ void VocalCompressorAudioProcessorEditor::resized()
 
     grMeter.setBounds(fracRect(w, h, grMeterX0, grMeterY0, grMeterX1, grMeterY1));
 
-    hpfButton.setBounds(fracRect(w, h, filterX0, filterY0, filterX1, filterY1));
+    // 3 botões push empilhados dentro da caixa FILTER única: PRE EQ / POST EQ / HPF.
+    {
+        auto filterBox = fracRect(w, h, filterX0, filterY0, filterX1, filterY1);
+        constexpr int gap = 6;
+        int rowH = (filterBox.getHeight() - gap * 2) / 3;
+
+        preOnButton.setBounds(filterBox.getX(), filterBox.getY(), filterBox.getWidth(), rowH);
+        postOnButton.setBounds(filterBox.getX(), filterBox.getY() + rowH + gap, filterBox.getWidth(), rowH);
+        hpfButton.setBounds(filterBox.getX(), filterBox.getY() + (rowH + gap) * 2, filterBox.getWidth(), rowH);
+    }
+
     bypassButton.setBounds(fracRect(w, h, bypassX0, bypassY0, bypassX1, bypassY1));
 
-    {
-        auto preRow = fracRect(w, h, eqSelX0, preRowY0, eqSelX1, preRowY1);
-        int selW = juce::roundToInt((float) preRow.getWidth() * selectButtonFrac);
-        preSelectButton.setBounds(preRow.getX(), preRow.getY(), selW, preRow.getHeight());
-        preOnButton.setBounds(preRow.getX() + selW + 4, preRow.getY(),
-                               preRow.getWidth() - selW - 4, preRow.getHeight());
-
-        auto postRow = fracRect(w, h, eqSelX0, postRowY0, eqSelX1, postRowY1);
-        postSelectButton.setBounds(postRow.getX(), postRow.getY(), selW, postRow.getHeight());
-        postOnButton.setBounds(postRow.getX() + selW + 4, postRow.getY(),
-                                postRow.getWidth() - selW - 4, postRow.getHeight());
-    }
     rtaDisplay.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
     eqGraph.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
-
-    bypassIndicator.setBounds(fracRect(w, h, topBoxX0, topBoxY0, topBoxX1, topBoxY1));
 }

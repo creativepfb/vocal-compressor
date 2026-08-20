@@ -45,11 +45,19 @@ public:
         drawCurve(g, area);
         drawNodes(g, area);
         drawTooltip(g, area);
+        drawHeader(g, area);
     }
 
     void mouseDown(const juce::MouseEvent& e) override
     {
         auto area = getLocalBounds().toFloat().reduced(2.0f);
+
+        if (resetButtonBounds(area).contains(e.position))
+        {
+            resetSelectedEQ();
+            return;
+        }
+
         int hit = findNodeNear(e.position, area);
         draggingIndex = hit;
 
@@ -291,6 +299,54 @@ private:
         if (freq >= 1000.0f)
             return juce::String(freq / 1000.0f, 2) + " kHz";
         return juce::String((int) freq) + " Hz";
+    }
+
+    /** Retângulo do botão RESET, no canto superior esquerdo do gráfico,
+        ao lado do rótulo PRE EQ / POST EQ. */
+    juce::Rectangle<float> resetButtonBounds(juce::Rectangle<float> area) const
+    {
+        return { area.getX() + 4.0f, area.getY() + 4.0f, 46.0f, 16.0f };
+    }
+
+    /** Rótulo (PRE EQ / POST EQ) + botão RESET, sempre no canto superior
+        esquerdo, indicando qual EQ está sendo mostrado/editado agora. */
+    void drawHeader(juce::Graphics& g, juce::Rectangle<float> area)
+    {
+        auto resetBounds = resetButtonBounds(area);
+        auto curveColour = isPre ? juce::Colour(0xffff9a3c) : NFLookAndFeel::kPurple;
+
+        g.setColour(juce::Colours::black.withAlpha(0.55f));
+        g.fillRoundedRectangle(resetBounds, 3.0f);
+        g.setColour(curveColour.withAlpha(0.6f));
+        g.drawRoundedRectangle(resetBounds, 3.0f, 1.0f);
+        g.setColour(curveColour);
+        g.setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
+        g.drawFittedText("RESET", resetBounds.getSmallestIntegerContainer(),
+                          juce::Justification::centred, 1);
+
+        juce::String label = isPre ? "PRE EQ" : "POST EQ";
+        auto labelBounds = juce::Rectangle<float>(resetBounds.getRight() + 6.0f, area.getY() + 4.0f, 70.0f, 16.0f);
+        g.setColour(curveColour);
+        g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
+        g.drawFittedText(label, labelBounds.getSmallestIntegerContainer(),
+                          juce::Justification::centredLeft, 1);
+    }
+
+    /** Reseta pro valor default SOMENTE as bandas do EQ atualmente
+        selecionado (Pre ou Post) - nunca mexe no outro estágio. */
+    void resetSelectedEQ()
+    {
+        static const char* bases[] = {
+            "LowCutOn", "LowCutFreq", "LowShelfFreq", "LowShelfGain",
+            "PeakFreq", "PeakGain", "PeakQ",
+            "HighShelfFreq", "HighShelfGain", "HighCutOn", "HighCutFreq"
+        };
+
+        for (auto* base : bases)
+            if (auto* param = apvts.getParameter(fullId(base)))
+                param->setValueNotifyingHost(param->getDefaultValue());
+
+        repaint();
     }
 
     void timerCallback() override { repaint(); }

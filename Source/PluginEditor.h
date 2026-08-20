@@ -6,7 +6,6 @@
 #include "UI/LevelMeter.h"
 #include "UI/DbReadout.h"
 #include "UI/RTADisplay.h"
-#include "UI/BypassIndicator.h"
 #include "UI/ValueReadout.h"
 #include "UI/EQGraphComponent.h"
 
@@ -59,17 +58,17 @@ private:
     DbReadout inputReadout, outputReadout;
 
     juce::ToggleButton hpfButton { "HPF" };
-    juce::ToggleButton bypassButton { "ON" };
+    juce::ToggleButton bypassButton { "BYPASS" };
 
-    // Seletor Pre/Post EQ: SELECT (qual aparece no gráfico, radio group,
-    // não é parâmetro de áudio) e ON (liga/desliga o DSP daquele estágio,
-    // parâmetro real via attachment). As duas funções são independentes.
-    juce::ToggleButton preSelectButton { "PRE EQ" }, postSelectButton { "POST EQ" };
-    juce::ToggleButton preOnButton { "ON" }, postOnButton { "ON" };
+    // Três botões push simples dentro da caixa FILTER: PRE EQ e POST EQ
+    // cada clique liga/desliga (parâmetro real, via attachment) E SELECIONA
+    // aquele EQ pro gráfico (não são radio buttons - podem estar os dois
+    // ON ao mesmo tempo). HPF só liga/desliga o próprio filtro, nunca mexe
+    // na seleção do gráfico.
+    juce::ToggleButton preOnButton { "PRE EQ" }, postOnButton { "POST EQ" };
 
     RTADisplay rtaDisplay;
     EQGraphComponent eqGraph;
-    BypassIndicator bypassIndicator;
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;

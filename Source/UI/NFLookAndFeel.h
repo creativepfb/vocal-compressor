@@ -83,47 +83,38 @@ public:
         }
     }
 
+    /** Push-button de estado único: ON = todo verde-lima aceso (com glow),
+        OFF = apagado/escuro. Usado pelos botões PRE EQ / POST EQ / HPF /
+        BYPASS - cada um é independente, não é mais um par OFF|ON dividido. */
     void drawToggleButton(juce::Graphics& g, juce::ToggleButton& button,
                            bool /*highlighted*/, bool /*down*/) override
     {
         auto bounds = button.getLocalBounds().toFloat().reduced(1.0f);
         bool isOn = button.getToggleState();
-        auto cornerSize = bounds.getHeight() * 0.5f;
+        float corner = 4.0f;
 
         g.setColour(juce::Colours::black.withAlpha(0.5f));
-        g.fillRoundedRectangle(bounds.translated(0.0f, 1.5f), cornerSize);
-
-        g.setColour(juce::Colour(0xff1c1c22));
-        g.fillRoundedRectangle(bounds, cornerSize);
-        g.setColour(juce::Colour(0xff3a3a42));
-        g.drawRoundedRectangle(bounds, cornerSize, 1.0f);
-
-        auto half = bounds.reduced(2.0f);
-        auto offRect = half.removeFromLeft(half.getWidth() * 0.5f);
-        auto onRect = half;
+        g.fillRoundedRectangle(bounds.translated(0.0f, 1.5f), corner);
 
         if (isOn)
         {
-            g.setColour(kGreen.withAlpha(0.25f));
-            g.fillRoundedRectangle(onRect.expanded(1.0f), cornerSize);
-            g.setColour(kGreen);
-            g.fillRoundedRectangle(onRect, cornerSize - 2.0f);
+            g.setColour(kKnobGreen.withAlpha(0.30f));
+            g.fillRoundedRectangle(bounds.expanded(1.5f), corner);
+            g.setColour(kKnobGreen);
+            g.fillRoundedRectangle(bounds, corner);
         }
         else
         {
-            g.setColour(juce::Colour(0xff44444c));
-            g.fillRoundedRectangle(offRect, cornerSize - 2.0f);
+            g.setColour(juce::Colour(0xff1c1c22));
+            g.fillRoundedRectangle(bounds, corner);
+            g.setColour(juce::Colour(0xff3a3a42));
+            g.drawRoundedRectangle(bounds, corner, 1.0f);
         }
 
-        // O texto do lado "ligado" vem do próprio texto do botão (ex.: "HPF",
-        // "ON"), pra dar pra reaproveisar esse desenho em vários switches.
-        auto onLabel = button.getButtonText().isNotEmpty() ? button.getButtonText() : juce::String("ON");
-
-        g.setFont(juce::Font(juce::FontOptions(11.0f, juce::Font::bold)));
-        g.setColour(isOn ? juce::Colour(0xff8a8a92) : kTextLight);
-        g.drawFittedText("OFF", offRect.getSmallestIntegerContainer(), juce::Justification::centred, 1);
-        g.setColour(isOn ? juce::Colour(0xff0a0a0c) : juce::Colour(0xff6a6a72));
-        g.drawFittedText(onLabel, onRect.getSmallestIntegerContainer(), juce::Justification::centred, 1);
+        g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
+        g.setColour(isOn ? juce::Colours::black : kTextDim);
+        g.drawFittedText(button.getButtonText(), bounds.getSmallestIntegerContainer(),
+                          juce::Justification::centred, 1);
     }
 
     juce::Font getLabelFont(juce::Label&) override
