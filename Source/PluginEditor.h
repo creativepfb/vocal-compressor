@@ -8,7 +8,6 @@
 #include "UI/RTADisplay.h"
 #include "UI/ValueReadout.h"
 #include "UI/HardwareButton.h"
-#include "UI/BypassIndicator.h"
 #include "UI/EQGraphComponent.h"
 
 /** Segura a faceplate + todos os controles, sempre no tamanho nativo da
@@ -68,13 +67,11 @@ private:
     HardwareButton hpfButton { "HPF" };
     HardwareButton preOnButton { "PRE EQ" }, postOnButton { "POST EQ" };
 
-    // BYPASS: a palavra "BYPASS" e a caixa preta já vêm impressas na
-    // faceplate - a caixa preta continua mostrando o indicador piscando
-    // (BypassIndicator), igual antes. O botão físico de verdade é um
-    // elemento nosso à parte, encaixado embaixo do texto "BYPASS" impresso
-    // (não dentro da caixa preta).
-    HardwareButton bypassButton { "" };
-    BypassIndicator bypassIndicator;
+    // BYPASS: no faceplate-5.png essa região do topo ficou lisa (sem caixa
+    // preta nem texto impresso) - agora é SÓ este botão, com "BYPASS"
+    // desenhado dentro dele mesmo (texto pulsando branco<->vermelho quando
+    // ON, ver HardwareButton::setPulseTextWhenOn).
+    HardwareButton bypassButton { "BYPASS" };
 
     RTADisplay rtaDisplay;
     EQGraphComponent eqGraph;

@@ -17,8 +17,13 @@
       afeta o LED. Usado pelos botões PRE EQ / POST EQ / HPF.
 
     Também serve pro botão RESET, em modo momentâneo (setMomentary) e sem
-    LED (setShowLed(false)) - só corpo físico com feedback de pressionado. */
-class HardwareButton : public juce::Button
+    LED (setShowLed(false)) - só corpo físico com feedback de pressionado.
+
+    Pulsação de texto (setPulseTextWhenOn) - usado só pelo BYPASS: quando
+    ON, o texto alterna lentamente (fade suave, ~850ms por ciclo) entre
+    branco e a cor do LED, em vez de ficar num tom fixo. Ao desligar, para
+    a animação e o texto volta pra branco na hora. */
+class HardwareButton : public juce::Button, private juce::Timer
 {
 public:
     explicit HardwareButton(const juce::String& name) : juce::Button(name)
@@ -30,6 +35,7 @@ public:
     void setMomentary(bool shouldBeMomentary) { momentary = shouldBeMomentary; }
     void setShowLed(bool shouldShowLed) { showLed = shouldShowLed; }
     void setLedColour(juce::Colour newColour) { ledColour = newColour; }
+    void setPulseTextWhenOn(bool shouldPulse) { pulseTextWhenOn = shouldPulse; }
 
     /** Aro extra indicando "é este filtro que está sendo editado agora no
         gráfico" - independente do ON/OFF do processamento. */
@@ -114,7 +120,7 @@ protected:
                 g.fillEllipse(ledCentreX - ledDiameter, ledCentreY - ledDiameter, ledDiameter * 2.0f, ledDiameter * 2.0f);
             }
 
-            g.setColour(buttonOn ? ledColour : juce::Colour(0xff2b2b2f));
+            g.setColour(buttonOn ? ledColour : ledColour.darker(0.85f));
             g.fillEllipse(ledCentreX - ledDiameter * 0.5f, ledCentreY - ledDiameter * 0.5f, ledDiameter, ledDiameter);
             g.setColour(juce::Colours::black.withAlpha(0.55f));
             g.drawEllipse(ledCentreX - ledDiameter * 0.5f, ledCentreY - ledDiameter * 0.5f, ledDiameter, ledDiameter, 1.0f);
@@ -136,6 +142,18 @@ protected:
         }
 
         // 10. Texto (à direita do LED, ou centralizado se não tiver LED).
+        // Liga/desliga a animação de pulsação conforme o estado atual -
+        // checado aqui (chamado a cada repaint) em vez de num callback de
+        // clique, porque o toggle também muda via automação/host.
+        bool pulsingNow = pulseTextWhenOn && buttonOn;
+        if (pulsingNow && !isTimerRunning())
+            startTimerHz(30);
+        else if (!pulsingNow && isTimerRunning())
+        {
+            stopTimer();
+            pulsePhase = 0.0f;
+        }
+
         auto label = getButtonText();
         if (label.isNotEmpty())
         {
@@ -143,15 +161,35 @@ protected:
             if (showLed)
                 textArea.removeFromLeft(inner.getWidth() * 0.14f + ledDiameter + 5.0f);
 
-            g.setColour(buttonOn ? juce::Colours::white : NFLookAndFeel::kTextDim);
+            juce::Colour textColour;
+            if (!buttonOn)
+                textColour = NFLookAndFeel::kTextDim;
+            else if (pulsingNow)
+            {
+                constexpr float cycleSeconds = 0.85f;
+                float t = 0.5f + 0.5f * std::sin(pulsePhase * juce::MathConstants<float>::twoPi / cycleSeconds);
+                textColour = juce::Colours::white.interpolatedWith(ledColour, t);
+            }
+            else
+                textColour = juce::Colours::white;
+
+            g.setColour(textColour);
             g.setFont(juce::Font(juce::FontOptions(juce::jlimit(9.0f, 13.0f, inner.getHeight() * 0.42f), juce::Font::bold)));
             g.drawFittedText(label, textArea.getSmallestIntegerContainer(), juce::Justification::centred, 1);
         }
     }
 
 private:
+    void timerCallback() override
+    {
+        pulsePhase += 1.0f / 30.0f;
+        repaint();
+    }
+
     bool momentary = false;
     bool selected = false;
     bool showLed = true;
+    bool pulseTextWhenOn = false;
+    float pulsePhase = 0.0f;
     juce::Colour ledColour { NFLookAndFeel::kKnobGreen };
 };

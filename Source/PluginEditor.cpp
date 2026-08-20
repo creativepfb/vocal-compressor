@@ -57,17 +57,13 @@ namespace
     constexpr float filterX0 = 0.069508f, filterX1 = 0.180328f;
     constexpr float filterY0 = 0.714130f, filterY1 = 0.901087f;
 
-    // Caixa preta já impressa na faceplate, ao lado da palavra "BYPASS"
-    // (também impressa) - mostra só o indicador piscando (BypassIndicator),
-    // nunca o botão físico.
-    constexpr float bypassBoxX0 = 0.736393f, bypassBoxX1 = 0.847213f;
-    constexpr float bypassBoxY0 = 0.067391f, bypassBoxY1 = 0.113043f;
-
-    // Botão físico de BYPASS de verdade - fica embaixo da palavra "BYPASS"
-    // impressa (espaço em branco na faceplate, à esquerda da caixa preta -
-    // medido diretamente no PNG), não dentro da caixa preta.
-    constexpr float bypassBtnX0 = 0.652459f, bypassBtnX1 = 0.734426f;
-    constexpr float bypassBtnY0 = 0.092391f, bypassBtnY1 = 0.139130f;
+    // Botão físico de BYPASS - no faceplate-5.png essa região do topo
+    // ficou completamente lisa (sem caixa preta nem texto impresso), então
+    // o botão (com "BYPASS" desenhado dentro dele mesmo) é o único
+    // elemento aqui. Posição escolhida na área lisa, longe do parafuso
+    // decorativo no canto e da borda do painel OUTPUT.
+    constexpr float bypassBtnX0 = 0.773770f, bypassBtnX1 = 0.885246f;
+    constexpr float bypassBtnY0 = 0.054348f, bypassBtnY1 = 0.108696f;
 }
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
@@ -76,10 +72,9 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
       inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb),
       inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb),
       rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
-      eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
-      bypassIndicator(*p.apvts.getRawParameterValue("bypass"))
+      eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0)
 {
-    content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate4_png, BinaryData::faceplate4_pngSize);
+    content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate5_png, BinaryData::faceplate5_pngSize);
     nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::botaopng126px_png, BinaryData::botaopng126px_pngSize);
 
     setLookAndFeel(&nfLookAndFeel);
@@ -97,8 +92,8 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     content.addAndMakeVisible(inputReadout);
     content.addAndMakeVisible(outputReadout);
 
-    content.addAndMakeVisible(bypassIndicator);
     bypassButton.setLedColour(NFLookAndFeel::kRed); // bypass = alerta, não "ligado normal"
+    bypassButton.setPulseTextWhenOn(true); // texto pulsa branco<->vermelho devagar quando ON
     content.addAndMakeVisible(bypassButton);
 
     // PRE EQ / POST EQ / HPF: cada clique liga/desliga o próprio estágio
@@ -163,7 +158,7 @@ void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& sli
     slider.onValueChange = [this, index] { updateValueLabel(index); };
 
     auto& readout = valueLabels[index];
-    readout.setFontHeight(36.0f);
+    readout.setFontHeight(34.0f);
     readout.setInterceptsMouseClicks(false, false);
     content.addAndMakeVisible(readout);
 }
@@ -220,31 +215,34 @@ void VocalCompressorAudioProcessorEditor::resized()
 
     grMeter.setBounds(fracRect(w, h, grMeterX0, grMeterY0, grMeterX1, grMeterY1));
 
-    // 3 botões compactos dentro da caixa FILTER única, com margens e vãos
-    // entre eles (não preenchendo a área toda) - PRE EQ / POST EQ / HPF.
+    // 3 botões compactos dentro da caixa FILTER única, ~20% menores que o
+    // "slot" disponível de cada linha (com margens e vãos), centralizados
+    // dentro dele - PRE EQ / POST EQ / HPF.
     {
         auto filterBox = fracRect(w, h, filterX0, filterY0, filterX1, filterY1);
         constexpr int sideMargin = 14;
         constexpr int verticalMargin = 10;
         constexpr int gap = 7;
+        constexpr float shrink = 0.8f; // ~20% menor que o slot
 
-        int buttonX = filterBox.getX() + sideMargin;
-        int buttonWidth = filterBox.getWidth() - sideMargin * 2;
-        int buttonHeight = (filterBox.getHeight() - verticalMargin * 2 - gap * 2) / 3;
-        int row0Y = filterBox.getY() + verticalMargin;
-        int row1Y = row0Y + buttonHeight + gap;
-        int row2Y = row1Y + buttonHeight + gap;
+        int slotW = filterBox.getWidth() - sideMargin * 2;
+        int slotH = (filterBox.getHeight() - verticalMargin * 2 - gap * 2) / 3;
+
+        int buttonWidth = juce::roundToInt((float) slotW * shrink);
+        int buttonHeight = juce::roundToInt((float) slotH * shrink);
+        int buttonX = filterBox.getX() + sideMargin + (slotW - buttonWidth) / 2;
+        int rowExtraY = (slotH - buttonHeight) / 2;
+
+        int row0Y = filterBox.getY() + verticalMargin + rowExtraY;
+        int row1Y = filterBox.getY() + verticalMargin + slotH + gap + rowExtraY;
+        int row2Y = filterBox.getY() + verticalMargin + (slotH + gap) * 2 + rowExtraY;
 
         preOnButton.setBounds(buttonX, row0Y, buttonWidth, buttonHeight);
         postOnButton.setBounds(buttonX, row1Y, buttonWidth, buttonHeight);
         hpfButton.setBounds(buttonX, row2Y, buttonWidth, buttonHeight);
     }
 
-    // Caixa preta impressa na faceplate: só o indicador piscando, como antes.
-    bypassIndicator.setBounds(fracRect(w, h, bypassBoxX0, bypassBoxY0, bypassBoxX1, bypassBoxY1));
-
-    // Botão físico de BYPASS de verdade: embaixo da palavra "BYPASS"
-    // impressa, fora da caixa preta.
+    // Botão físico de BYPASS - sozinho na área lisa do topo.
     bypassButton.setBounds(fracRect(w, h, bypassBtnX0, bypassBtnY0, bypassBtnX1, bypassBtnY1));
 
     rtaDisplay.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
