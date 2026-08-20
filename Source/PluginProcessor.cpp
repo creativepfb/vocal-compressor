@@ -14,7 +14,6 @@ VocalCompressorAudioProcessor::VocalCompressorAudioProcessor()
     driveParam     = apvts.getRawParameterValue("drive");
     makeupParam    = apvts.getRawParameterValue("makeup");
     mixParam       = apvts.getRawParameterValue("mix");
-    hpfParam       = apvts.getRawParameterValue("hpf");
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout
@@ -50,9 +49,6 @@ VocalCompressorAudioProcessor::createParameterLayout()
         "mix", "Mix",
         juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 100.0f, "%"));
 
-    params.push_back(std::make_unique<juce::AudioParameterBool>(
-        "hpf", "Detector HPF (Vocal Mode)", false));
-
     return { params.begin(), params.end() };
 }
 
@@ -72,12 +68,10 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 {
     juce::ScopedNoDenormals noDenormals;
 
-    bool hpfOn = hpfParam->load() > 0.5f;
-
     compressorL.setParameters(thresholdParam->load(), ratioParam->load(), attackParam->load(),
-                               releaseParam->load(), driveParam->load(), makeupParam->load(), hpfOn);
+                               releaseParam->load(), driveParam->load(), makeupParam->load());
     compressorR.setParameters(thresholdParam->load(), ratioParam->load(), attackParam->load(),
-                               releaseParam->load(), driveParam->load(), makeupParam->load(), hpfOn);
+                               releaseParam->load(), driveParam->load(), makeupParam->load());
 
     float inPeak = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)

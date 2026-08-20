@@ -5,7 +5,7 @@ namespace
 {
     // Retângulo em frações (0..1) da imagem de fundo, convertido pra pixels
     // reais conforme o tamanho atual do editor. Frações medidas por pixel
-    // direto na imagem faceplate-1200px.png (1200x631).
+    // direto na imagem faceplate-v2.png (1680x643).
     juce::Rectangle<int> fracRect(int w, int h, float x0, float y0, float x1, float y1)
     {
         return { juce::roundToInt(x0 * (float) w), juce::roundToInt(y0 * (float) h),
@@ -17,26 +17,38 @@ namespace
         return fracRect(w, h, cx - width * 0.5f, cy - height * 0.5f, cx + width * 0.5f, cy + height * 0.5f);
     }
 
-    constexpr float knobCentresX[7] = { 0.1875f, 0.29125f, 0.397083f, 0.501667f, 0.605f, 0.708333f, 0.811667f };
-    constexpr float knobCentreY = 0.408083f;
-    // Resolução nativa da imagem do knob (88x88) sobre a faceplate de 1200px
-    // de largura - sem encolher, senão o anel/ponteiro perde nitidez e fica
-    // pequeno demais perto das marcações da faceplate.
-    constexpr float knobDiameter = 88.0f / 1200.0f;
+    constexpr float knobCentresX[7] = { 0.17887f, 0.27173f, 0.36756f, 0.46339f, 0.55863f, 0.65446f, 0.74821f };
+    constexpr float knobCentreY = 0.546656f;
+    constexpr float knobDiameter = 0.058929f;
 
-    constexpr float valueBoxTop = 0.573693f;
-    constexpr float valueBoxBottom = 0.630744f;
-    constexpr float valueBoxWidth = 0.075f;
+    constexpr float valueBoxTop = 0.790047f;
+    constexpr float valueBoxBottom = 0.874028f;
+    constexpr float valueBoxWidth = 0.069048f;
 
     constexpr int decimalPlaces[7] = { 1, 1, 1, 0, 2, 1, 0 };
+
+    // INPUT (esquerda)
+    constexpr float inputMeterX0 = 0.054762f, inputMeterX1 = 0.077976f;
+    constexpr float meterY0 = 0.329704f, meterY1 = 0.768274f;
+    constexpr float inReadoutCx = 0.064881f, inReadoutCy = 0.872473f;
+    constexpr float readoutWidth = 0.071429f, readoutHeight = 0.082271f;
+
+    // GR (meio)
+    constexpr float grMeterX0 = 0.831548f, grMeterX1 = 0.853571f;
+    constexpr float grMeterY0 = 0.329704f, grMeterY1 = 0.763608f;
+
+    // OUTPUT (direita)
+    constexpr float outputMeterX0 = 0.926786f, outputMeterX1 = 0.95f;
+    constexpr float outReadoutCx = 0.937f;
 }
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     VocalCompressorAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p), grMeter(p),
-      inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb)
+      inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb),
+      inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb)
 {
-    faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate1200px_png, BinaryData::faceplate1200px_pngSize);
+    faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplatev2_png, BinaryData::faceplatev2_pngSize);
     nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::knobpequenopng_png, BinaryData::knobpequenopng_pngSize);
 
     setLookAndFeel(&nfLookAndFeel);
@@ -44,12 +56,13 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     juce::Slider* sliders[numKnobs] = { &thresholdSlider, &ratioSlider, &attackSlider,
                                          &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
     for (int i = 0; i < numKnobs; ++i)
-        setupKnob(i, *sliders[i], decimalPlaces[i]);
+        setupKnob(i, *sliders[i]);
 
-    addAndMakeVisible(hpfButton);
     addAndMakeVisible(grMeter);
     addAndMakeVisible(inputMeter);
     addAndMakeVisible(outputMeter);
+    addAndMakeVisible(inputReadout);
+    addAndMakeVisible(outputReadout);
 
     auto& apvts = audioProcessor.apvts;
     thresholdAttach = std::make_unique<SliderAttachment>(apvts, "threshold", thresholdSlider);
@@ -59,15 +72,12 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     driveAttach     = std::make_unique<SliderAttachment>(apvts, "drive", driveSlider);
     makeupAttach    = std::make_unique<SliderAttachment>(apvts, "makeup", makeupSlider);
     mixAttach       = std::make_unique<SliderAttachment>(apvts, "mix", mixSlider);
-    hpfAttach       = std::make_unique<ButtonAttachment>(apvts, "hpf", hpfButton);
 
     for (int i = 0; i < numKnobs; ++i)
         updateValueLabel(i);
 
-    // A imagem é 1200x631, mas isso é grande demais pra janela de um plugin -
-    // desenhamos ela reduzida (70%), mantendo a mesma proporção; o layout
-    // (frações) se adapta sozinho ao tamanho real da janela.
-    setSize(840, 442);
+    // Imagem é 1680x643 - reduzida (65%) pra não abrir gigante na tela.
+    setSize(1092, 418);
 }
 
 VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
@@ -75,7 +85,7 @@ VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
     setLookAndFeel(nullptr);
 }
 
-void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& slider, int decimals)
+void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& slider)
 {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
@@ -86,11 +96,9 @@ void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& sli
     auto& label = valueLabels[index];
     label.setJustificationType(juce::Justification::centred);
     label.setColour(juce::Label::textColourId, NFLookAndFeel::kGreen);
-    label.setFont(juce::Font(juce::FontOptions(15.0f, juce::Font::bold)));
+    label.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
     label.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(label);
-
-    juce::ignoreUnused(decimals);
 }
 
 void VocalCompressorAudioProcessorEditor::updateValueLabel(int index)
@@ -124,15 +132,11 @@ void VocalCompressorAudioProcessorEditor::resized()
                                                   valueBoxWidth, valueBoxBottom - valueBoxTop));
     }
 
-    // --- Coluna INPUT (esquerda) ---
-    inputMeter.setBounds(fracRect(w, h, 0.056667f, 0.237718f, 0.084167f, 0.553091f));
+    inputMeter.setBounds(fracRect(w, h, inputMeterX0, meterY0, inputMeterX1, meterY1));
+    inputReadout.setBounds(fracRectCentred(w, h, inReadoutCx, inReadoutCy, readoutWidth, readoutHeight));
 
-    // --- Coluna OUTPUT (direita) ---
-    outputMeter.setBounds(fracRect(w, h, 0.918333f, 0.237718f, 0.946667f, 0.553091f));
+    grMeter.setBounds(fracRect(w, h, grMeterX0, grMeterY0, grMeterX1, grMeterY1));
 
-    // --- GR (abaixo do OUTPUT) ---
-    grMeter.setBounds(fracRect(w, h, 0.918333f, 0.686212f, 0.946667f, 0.885896f));
-
-    // --- HPF: em cima da área "SIDECHAIN OFF/HPF" da imagem ---
-    hpfButton.setBounds(fracRect(w, h, 0.038333f, 0.811410f, 0.129167f, 0.849445f));
+    outputMeter.setBounds(fracRect(w, h, outputMeterX0, meterY0, outputMeterX1, meterY1));
+    outputReadout.setBounds(fracRectCentred(w, h, outReadoutCx, inReadoutCy, readoutWidth, readoutHeight));
 }
