@@ -12,6 +12,10 @@ public:
     static const juce::Colour kPanel;
     static const juce::Colour kPurple;
     static const juce::Colour kGreen;
+    // Verde exato do pontinho indicador do PNG do knob (amostrado do
+    // arquivo, RGB 0,197,0) - usado no arco e no texto dos valores dos
+    // knobs, pra ficar tudo com a mesma tonalidade do pontinho.
+    static const juce::Colour kKnobGreen;
     static const juce::Colour kRed;
     static const juce::Colour kYellow;
     static const juce::Colour kTextLight;
@@ -58,18 +62,23 @@ public:
 
         g.drawImageTransformed(knobImage, transform, false);
 
-        // Arquinho de valor (verde, igual o pontinho), crescendo bem rente à
-        // borda do knob, no vãozinho antes das marcações da faceplate.
+        // Arquinho de valor: linha única, contínua e grossa (não são vários
+        // traços - é um só Path de 0 a sliderPos), na mesma cor exata do
+        // pontinho indicador do PNG.
         auto centre = bounds.getCentre();
-        auto arcRadius = diameter * 0.5f * 1.11f;
+        auto arcRadius = diameter * 0.5f * 1.12f;
         auto angle = rotaryStartAngle + rotationFromRest;
 
-        juce::Path valueArc;
-        valueArc.addCentredArc(centre.x, centre.y, arcRadius, arcRadius, 0.0f, rotaryStartAngle, angle, true);
-        g.setColour(kGreen.withAlpha(0.35f));
-        g.strokePath(valueArc, juce::PathStrokeType(3.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setColour(kGreen);
-        g.strokePath(valueArc, juce::PathStrokeType(1.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        if (rotationFromRest > 0.0001f)
+        {
+            juce::Path valueArc;
+            valueArc.addCentredArc(centre.x, centre.y, arcRadius, arcRadius, 0.0f, rotaryStartAngle, angle, true);
+
+            g.setColour(kKnobGreen.withAlpha(0.30f));
+            g.strokePath(valueArc, juce::PathStrokeType(8.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            g.setColour(kKnobGreen);
+            g.strokePath(valueArc, juce::PathStrokeType(5.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        }
     }
 
     void drawToggleButton(juce::Graphics& g, juce::ToggleButton& button,
@@ -169,6 +178,7 @@ inline const juce::Colour NFLookAndFeel::kBackground { 0xff0b0b0d };
 inline const juce::Colour NFLookAndFeel::kPanel      { 0xff17171a };
 inline const juce::Colour NFLookAndFeel::kPurple     { 0xffa855f7 };
 inline const juce::Colour NFLookAndFeel::kGreen      { 0xff39ff6a };
+inline const juce::Colour NFLookAndFeel::kKnobGreen  { 0xff00c500 };
 inline const juce::Colour NFLookAndFeel::kRed        { 0xffff3b3b };
 inline const juce::Colour NFLookAndFeel::kYellow     { 0xffffd23f };
 inline const juce::Colour NFLookAndFeel::kTextLight  { 0xffe8e8ec };
