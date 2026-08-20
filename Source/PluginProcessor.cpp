@@ -1,6 +1,61 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+namespace
+{
+    // Adiciona o conjunto completo de parâmetros de UM estágio de EQ
+    // (Pre ou Post), prefixados (ex.: "preLowCutFreq", "postLowCutFreq") -
+    // evita escrever os 12 parâmetros à mão duas vezes.
+    void addEqStageParameters(std::vector<std::unique_ptr<juce::RangedAudioParameter>>& params,
+                               const juce::String& prefix, const juce::String& displayPrefix)
+    {
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            prefix + "Enabled", displayPrefix + " EQ Enabled", false));
+
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            prefix + "LowCutOn", displayPrefix + " Low Cut On", false));
+
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            prefix + "LowCutFreq", displayPrefix + " Low Cut Freq",
+            juce::NormalisableRange<float>(20.0f, 500.0f, 1.0f, 0.4f), 80.0f, "Hz"));
+
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            prefix + "LowShelfFreq", displayPrefix + " Low Shelf Freq",
+            juce::NormalisableRange<float>(20.0f, 500.0f, 1.0f, 0.4f), 150.0f, "Hz"));
+
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            prefix + "LowShelfGain", displayPrefix + " Low Shelf Gain",
+            juce::NormalisableRange<float>(-15.0f, 15.0f, 0.1f), 0.0f, "dB"));
+
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            prefix + "PeakFreq", displayPrefix + " Peak Freq",
+            juce::NormalisableRange<float>(200.0f, 8000.0f, 1.0f, 0.3f), 1000.0f, "Hz"));
+
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            prefix + "PeakGain", displayPrefix + " Peak Gain",
+            juce::NormalisableRange<float>(-15.0f, 15.0f, 0.1f), 0.0f, "dB"));
+
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            prefix + "PeakQ", displayPrefix + " Peak Q",
+            juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f, 0.4f), 1.0f));
+
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            prefix + "HighShelfFreq", displayPrefix + " High Shelf Freq",
+            juce::NormalisableRange<float>(1000.0f, 18000.0f, 1.0f, 0.3f), 8000.0f, "Hz"));
+
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            prefix + "HighShelfGain", displayPrefix + " High Shelf Gain",
+            juce::NormalisableRange<float>(-15.0f, 15.0f, 0.1f), 0.0f, "dB"));
+
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            prefix + "HighCutOn", displayPrefix + " High Cut On", false));
+
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            prefix + "HighCutFreq", displayPrefix + " High Cut Freq",
+            juce::NormalisableRange<float>(1000.0f, 20000.0f, 1.0f, 0.4f), 12000.0f, "Hz"));
+    }
+}
+
 VocalCompressorAudioProcessor::VocalCompressorAudioProcessor()
     : AudioProcessor(BusesProperties()
           .withInput("Input", juce::AudioChannelSet::stereo(), true)
@@ -17,17 +72,8 @@ VocalCompressorAudioProcessor::VocalCompressorAudioProcessor()
     hpfParam       = apvts.getRawParameterValue("hpf");
     bypassParam    = apvts.getRawParameterValue("bypass");
 
-    lowCutOnParam      = apvts.getRawParameterValue("lowCutOn");
-    lowCutFreqParam    = apvts.getRawParameterValue("lowCutFreq");
-    lowShelfFreqParam  = apvts.getRawParameterValue("lowShelfFreq");
-    lowShelfGainParam  = apvts.getRawParameterValue("lowShelfGain");
-    peakFreqParam      = apvts.getRawParameterValue("peakFreq");
-    peakGainParam      = apvts.getRawParameterValue("peakGain");
-    peakQParam         = apvts.getRawParameterValue("peakQ");
-    highShelfFreqParam = apvts.getRawParameterValue("highShelfFreq");
-    highShelfGainParam = apvts.getRawParameterValue("highShelfGain");
-    highCutOnParam     = apvts.getRawParameterValue("highCutOn");
-    highCutFreqParam   = apvts.getRawParameterValue("highCutFreq");
+    preEqParams.resolve(apvts, "pre");
+    postEqParams.resolve(apvts, "post");
 
     for (auto& v : waveformBuffer)
         v.store(0.0f);
@@ -72,48 +118,10 @@ VocalCompressorAudioProcessor::createParameterLayout()
     params.push_back(std::make_unique<juce::AudioParameterBool>(
         "bypass", "Bypass", false));
 
-    // --- EQ paramétrico (antes do compressor) ---
-    params.push_back(std::make_unique<juce::AudioParameterBool>(
-        "lowCutOn", "Low Cut On", false));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "lowCutFreq", "Low Cut Freq",
-        juce::NormalisableRange<float>(20.0f, 500.0f, 1.0f, 0.4f), 80.0f, "Hz"));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "lowShelfFreq", "Low Shelf Freq",
-        juce::NormalisableRange<float>(20.0f, 500.0f, 1.0f, 0.4f), 150.0f, "Hz"));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "lowShelfGain", "Low Shelf Gain",
-        juce::NormalisableRange<float>(-15.0f, 15.0f, 0.1f), 0.0f, "dB"));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "peakFreq", "Peak Freq",
-        juce::NormalisableRange<float>(200.0f, 8000.0f, 1.0f, 0.3f), 1000.0f, "Hz"));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "peakGain", "Peak Gain",
-        juce::NormalisableRange<float>(-15.0f, 15.0f, 0.1f), 0.0f, "dB"));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "peakQ", "Peak Q",
-        juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f, 0.4f), 1.0f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "highShelfFreq", "High Shelf Freq",
-        juce::NormalisableRange<float>(1000.0f, 18000.0f, 1.0f, 0.3f), 8000.0f, "Hz"));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "highShelfGain", "High Shelf Gain",
-        juce::NormalisableRange<float>(-15.0f, 15.0f, 0.1f), 0.0f, "dB"));
-
-    params.push_back(std::make_unique<juce::AudioParameterBool>(
-        "highCutOn", "High Cut On", false));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "highCutFreq", "High Cut Freq",
-        juce::NormalisableRange<float>(1000.0f, 20000.0f, 1.0f, 0.4f), 12000.0f, "Hz"));
+    // --- Dois EQs parametricos independentes: Pre (antes do compressor) e
+    // Post (depois do compressor, antes do RTA/output) ---
+    addEqStageParameters(params, "pre", "Pre");
+    addEqStageParameters(params, "post", "Post");
 
     return { params.begin(), params.end() };
 }
@@ -126,8 +134,10 @@ void VocalCompressorAudioProcessor::prepareToPlay(double sampleRate, int samples
     compressorR.prepare(sampleRate);
 
     juce::dsp::ProcessSpec spec { sampleRate, (juce::uint32) samplesPerBlock, 1 };
-    eqL.prepare(spec);
-    eqR.prepare(spec);
+    preEqL.prepare(spec);
+    preEqR.prepare(spec);
+    postEqL.prepare(spec);
+    postEqR.prepare(spec);
 }
 
 bool VocalCompressorAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -148,14 +158,12 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     compressorR.setParameters(thresholdParam->load(), ratioParam->load(), attackParam->load(),
                                releaseParam->load(), driveParam->load(), makeupParam->load(), hpfOn);
 
-    bool lowCutOn = lowCutOnParam->load() > 0.5f;
-    bool highCutOn = highCutOnParam->load() > 0.5f;
-    eqL.setParameters(lowCutOn, lowCutFreqParam->load(), lowShelfFreqParam->load(), lowShelfGainParam->load(),
-                       peakFreqParam->load(), peakGainParam->load(), peakQParam->load(),
-                       highShelfFreqParam->load(), highShelfGainParam->load(), highCutOn, highCutFreqParam->load());
-    eqR.setParameters(lowCutOn, lowCutFreqParam->load(), lowShelfFreqParam->load(), lowShelfGainParam->load(),
-                       peakFreqParam->load(), peakGainParam->load(), peakQParam->load(),
-                       highShelfFreqParam->load(), highShelfGainParam->load(), highCutOn, highCutFreqParam->load());
+    bool preOn = preEqParams.enabled->load() > 0.5f;
+    bool postOn = postEqParams.enabled->load() > 0.5f;
+    preEqParams.applyTo(preEqL);
+    preEqParams.applyTo(preEqR);
+    postEqParams.applyTo(postEqL);
+    postEqParams.applyTo(postEqR);
 
     float inPeak = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
@@ -165,25 +173,24 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     auto* left  = buffer.getWritePointer(0);
     auto* right = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : nullptr;
 
-    // RTA mostra o espectro do sinal de ENTRADA (antes do EQ) - pra dar pra
-    // ver o que está sendo moldado, igual EQ de referência.
-    spectrumAnalyzer.pushSamples(left, buffer.getNumSamples());
-
     float mix = mixParam->load() / 100.0f;
 
     if (!bypassed)
     {
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
-            float dryL = eqL.processSample(left[i]);
-            float wetL = compressorL.processSample(dryL);
-            left[i] = dryL * (1.0f - mix) + wetL * mix;
+            // INPUT -> PRE EQ -> COMPRESSOR -> POST EQ -> (RTA) -> OUTPUT
+            float preL = preOn ? preEqL.processSample(left[i]) : left[i];
+            float wetL = compressorL.processSample(preL);
+            float mixedL = preL * (1.0f - mix) + wetL * mix;
+            left[i] = postOn ? postEqL.processSample(mixedL) : mixedL;
 
             if (right != nullptr)
             {
-                float dryR = eqR.processSample(right[i]);
-                float wetR = compressorR.processSample(dryR);
-                right[i] = dryR * (1.0f - mix) + wetR * mix;
+                float preR = preOn ? preEqR.processSample(right[i]) : right[i];
+                float wetR = compressorR.processSample(preR);
+                float mixedR = preR * (1.0f - mix) + wetR * mix;
+                right[i] = postOn ? postEqR.processSample(mixedR) : mixedR;
             }
         }
 
@@ -195,6 +202,10 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     {
         currentGainReductionDb.store(0.0f);
     }
+
+    // RTA analisa o sinal FINAL (pós Pre EQ + compressor + Post EQ), o
+    // mesmo que vai pro output - não mais o sinal de entrada bruto.
+    spectrumAnalyzer.pushSamples(left, buffer.getNumSamples());
 
     float outPeak = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)

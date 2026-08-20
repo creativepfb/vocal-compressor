@@ -57,6 +57,13 @@ namespace
     constexpr float rtaX0 = 0.252459f, rtaX1 = 0.752787f;
     constexpr float rtaY0 = 0.677174f, rtaY1 = 0.905435f;
 
+    // Seletor Pre/Post EQ: provisório, no vão acima do Filtro/Bypass (ainda
+    // não existe espaço desenhado na faceplate pra isso).
+    constexpr float eqSelX0 = 0.034754f, eqSelX1 = 0.208525f;
+    constexpr float preRowY0 = 0.685f, preRowY1 = 0.727f;
+    constexpr float postRowY0 = 0.735f, postRowY1 = 0.777f;
+    constexpr float selectButtonFrac = 0.68f; // fracao da largura pro botao SELECT, resto pro ON
+
     // Caixa preta do topo (indicador de Bypass)
     constexpr float topBoxX0 = 0.626885f, topBoxX1 = 0.886557f;
     constexpr float topBoxY0 = 0.057609f, topBoxY1 = 0.125f;
@@ -90,6 +97,19 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     content.addAndMakeVisible(outputReadout);
     content.addAndMakeVisible(hpfButton);
     content.addAndMakeVisible(bypassButton);
+
+    // Seletor Pre/Post: SELECT (radio, so troca o que aparece no grafico -
+    // nao e parametro de audio) e ON (liga/desliga o DSP daquele estagio).
+    preSelectButton.setRadioGroupId(1);
+    postSelectButton.setRadioGroupId(1);
+    preSelectButton.setToggleState(true, juce::dontSendNotification);
+    preSelectButton.onClick = [this] { if (preSelectButton.getToggleState()) eqGraph.setSelectedEQ(true); };
+    postSelectButton.onClick = [this] { if (postSelectButton.getToggleState()) eqGraph.setSelectedEQ(false); };
+    content.addAndMakeVisible(preSelectButton);
+    content.addAndMakeVisible(postSelectButton);
+    content.addAndMakeVisible(preOnButton);
+    content.addAndMakeVisible(postOnButton);
+
     content.addAndMakeVisible(rtaDisplay);
     content.addAndMakeVisible(eqGraph); // por cima do RTA, de proposito
     content.addAndMakeVisible(bypassIndicator);
@@ -104,6 +124,8 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     mixAttach       = std::make_unique<SliderAttachment>(apvts, "mix", mixSlider);
     hpfAttach       = std::make_unique<ButtonAttachment>(apvts, "hpf", hpfButton);
     bypassAttach    = std::make_unique<ButtonAttachment>(apvts, "bypass", bypassButton);
+    preOnAttach     = std::make_unique<ButtonAttachment>(apvts, "preEnabled", preOnButton);
+    postOnAttach    = std::make_unique<ButtonAttachment>(apvts, "postEnabled", postOnButton);
 
     for (int i = 0; i < numKnobs; ++i)
         updateValueLabel(i);
@@ -190,6 +212,19 @@ void VocalCompressorAudioProcessorEditor::resized()
 
     hpfButton.setBounds(fracRect(w, h, filterX0, filterY0, filterX1, filterY1));
     bypassButton.setBounds(fracRect(w, h, bypassX0, bypassY0, bypassX1, bypassY1));
+
+    {
+        auto preRow = fracRect(w, h, eqSelX0, preRowY0, eqSelX1, preRowY1);
+        int selW = juce::roundToInt((float) preRow.getWidth() * selectButtonFrac);
+        preSelectButton.setBounds(preRow.getX(), preRow.getY(), selW, preRow.getHeight());
+        preOnButton.setBounds(preRow.getX() + selW + 4, preRow.getY(),
+                               preRow.getWidth() - selW - 4, preRow.getHeight());
+
+        auto postRow = fracRect(w, h, eqSelX0, postRowY0, eqSelX1, postRowY1);
+        postSelectButton.setBounds(postRow.getX(), postRow.getY(), selW, postRow.getHeight());
+        postOnButton.setBounds(postRow.getX() + selW + 4, postRow.getY(),
+                                postRow.getWidth() - selW - 4, postRow.getHeight());
+    }
     rtaDisplay.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
     eqGraph.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
 

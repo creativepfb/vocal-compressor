@@ -61,6 +61,12 @@ private:
     juce::ToggleButton hpfButton { "HPF" };
     juce::ToggleButton bypassButton { "ON" };
 
+    // Seletor Pre/Post EQ: SELECT (qual aparece no gráfico, radio group,
+    // não é parâmetro de áudio) e ON (liga/desliga o DSP daquele estágio,
+    // parâmetro real via attachment). As duas funções são independentes.
+    juce::ToggleButton preSelectButton { "PRE EQ" }, postSelectButton { "POST EQ" };
+    juce::ToggleButton preOnButton { "ON" }, postOnButton { "ON" };
+
     RTADisplay rtaDisplay;
     EQGraphComponent eqGraph;
     BypassIndicator bypassIndicator;
@@ -69,7 +75,7 @@ private:
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     std::unique_ptr<SliderAttachment> thresholdAttach, ratioAttach, attackAttach,
                                        releaseAttach, driveAttach, makeupAttach, mixAttach;
-    std::unique_ptr<ButtonAttachment> hpfAttach, bypassAttach;
+    std::unique_ptr<ButtonAttachment> hpfAttach, bypassAttach, preOnAttach, postOnAttach;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocalCompressorAudioProcessorEditor)
 };
