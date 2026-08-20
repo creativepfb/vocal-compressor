@@ -1,6 +1,8 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "DSP/VocalCompressorDSP.h"
+#include "DSP/VoiceEQ.h"
+#include "DSP/SpectrumAnalyzer.h"
 
 class VocalCompressorAudioProcessor : public juce::AudioProcessor
 {
@@ -52,10 +54,16 @@ public:
     std::array<std::atomic<float>, waveformBufferSize> waveformBuffer;
     std::atomic<int> waveformWriteIndex { 0 };
 
+    // Espectro do sinal de ENTRADA (antes do EQ) pro RTA de fundo na GUI.
+    SpectrumAnalyzer spectrumAnalyzer;
+    double getCurrentSampleRateForGui() const { return currentSampleRate; }
+
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
+    VoiceEQ eqL, eqR;
     VocalCompressorDSP compressorL, compressorR;
+    double currentSampleRate = 44100.0;
 
     std::atomic<float>* thresholdParam = nullptr;
     std::atomic<float>* ratioParam     = nullptr;
@@ -66,6 +74,16 @@ private:
     std::atomic<float>* mixParam       = nullptr;
     std::atomic<float>* hpfParam       = nullptr;
     std::atomic<float>* bypassParam    = nullptr;
+
+    std::atomic<float>* lowCutOnParam     = nullptr;
+    std::atomic<float>* lowCutFreqParam   = nullptr;
+    std::atomic<float>* lowShelfFreqParam = nullptr;
+    std::atomic<float>* lowShelfGainParam = nullptr;
+    std::atomic<float>* peakFreqParam     = nullptr;
+    std::atomic<float>* peakGainParam     = nullptr;
+    std::atomic<float>* peakQParam        = nullptr;
+    std::atomic<float>* highShelfFreqParam = nullptr;
+    std::atomic<float>* highShelfGainParam = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocalCompressorAudioProcessor)
 };
