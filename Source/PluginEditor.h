@@ -7,6 +7,8 @@
 #include "UI/DbReadout.h"
 #include "UI/RTADisplay.h"
 #include "UI/ValueReadout.h"
+#include "UI/CaptionLabel.h"
+#include "UI/HardwareButton.h"
 #include "UI/EQGraphComponent.h"
 
 /** Segura a faceplate + todos os controles, sempre no tamanho nativo da
@@ -57,15 +59,20 @@ private:
     LevelMeter inputMeter, outputMeter;
     DbReadout inputReadout, outputReadout;
 
-    juce::ToggleButton hpfButton { "HPF" };
-    juce::ToggleButton bypassButton { "BYPASS" };
+    // Botões físicos (corpo escuro, aro roxo, LED verde-limão quando ON) -
+    // ver UI/HardwareButton.h. Três push simples dentro da caixa FILTER:
+    // PRE EQ e POST EQ cada clique liga/desliga (parâmetro real, via
+    // attachment) E SELECIONA aquele EQ pro gráfico (não são radio buttons -
+    // podem estar os dois ON ao mesmo tempo, só um fica SELECTED por vez).
+    // HPF só liga/desliga o próprio filtro, nunca mexe na seleção.
+    HardwareButton hpfButton { "HPF" };
+    HardwareButton preOnButton { "PRE EQ" }, postOnButton { "POST EQ" };
 
-    // Três botões push simples dentro da caixa FILTER: PRE EQ e POST EQ
-    // cada clique liga/desliga (parâmetro real, via attachment) E SELECIONA
-    // aquele EQ pro gráfico (não são radio buttons - podem estar os dois
-    // ON ao mesmo tempo). HPF só liga/desliga o próprio filtro, nunca mexe
-    // na seleção do gráfico.
-    juce::ToggleButton preOnButton { "PRE EQ" }, postOnButton { "POST EQ" };
+    // BYPASS: rótulo "BYPASS" acima, botão físico embaixo - o grande
+    // retângulo preto do topo da faceplate é outro elemento, reservado pra
+    // função futura, e não deve ser tocado.
+    CaptionLabel bypassLabel;
+    HardwareButton bypassButton { "" };
 
     RTADisplay rtaDisplay;
     EQGraphComponent eqGraph;

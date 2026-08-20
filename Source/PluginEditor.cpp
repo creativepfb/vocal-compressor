@@ -88,13 +88,32 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     content.addAndMakeVisible(inputReadout);
     content.addAndMakeVisible(outputReadout);
     content.addAndMakeVisible(hpfButton);
+
+    bypassLabel.setText("BYPASS");
+    bypassLabel.setFontHeight(11.0f);
+    bypassLabel.setColour(NFLookAndFeel::kTextLight);
+    bypassLabel.setInterceptsMouseClicks(false, false);
+    content.addAndMakeVisible(bypassLabel);
     content.addAndMakeVisible(bypassButton);
 
     // PRE EQ / POST EQ: cada clique liga/desliga o próprio estágio (feito
     // pelo ButtonAttachment abaixo) E seleciona esse EQ pro gráfico -
-    // independentes entre si, não é radio group. HPF nunca mexe na seleção.
-    preOnButton.onClick  = [this] { eqGraph.setSelectedEQ(true); };
-    postOnButton.onClick = [this] { eqGraph.setSelectedEQ(false); };
+    // independentes entre si, não é radio group (os dois podem ficar ON
+    // juntos). O aro branco de "selecionado" é só visual, separado do
+    // brilho verde de ON. HPF nunca mexe na seleção.
+    preOnButton.onClick = [this]
+    {
+        eqGraph.setSelectedEQ(true);
+        preOnButton.setSelectedForEditing(true);
+        postOnButton.setSelectedForEditing(false);
+    };
+    postOnButton.onClick = [this]
+    {
+        eqGraph.setSelectedEQ(false);
+        postOnButton.setSelectedForEditing(true);
+        preOnButton.setSelectedForEditing(false);
+    };
+    preOnButton.setSelectedForEditing(true); // EQGraphComponent começa mostrando o PRE
     content.addAndMakeVisible(preOnButton);
     content.addAndMakeVisible(postOnButton);
 
@@ -208,7 +227,15 @@ void VocalCompressorAudioProcessorEditor::resized()
         hpfButton.setBounds(filterBox.getX(), filterBox.getY() + (rowH + gap) * 2, filterBox.getWidth(), rowH);
     }
 
-    bypassButton.setBounds(fracRect(w, h, bypassX0, bypassY0, bypassX1, bypassY1));
+    // BYPASS: rótulo em cima, botão físico embaixo (não lado a lado) - o
+    // grande retângulo preto do topo é outro elemento, não mexe nele aqui.
+    {
+        auto bypassBox = fracRect(w, h, bypassX0, bypassY0, bypassX1, bypassY1);
+        int labelH = juce::jmin(16, bypassBox.getHeight() / 3);
+        bypassLabel.setBounds(bypassBox.getX(), bypassBox.getY(), bypassBox.getWidth(), labelH);
+        bypassButton.setBounds(bypassBox.getX(), bypassBox.getY() + labelH + 2,
+                                bypassBox.getWidth(), bypassBox.getHeight() - labelH - 2);
+    }
 
     rtaDisplay.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
     eqGraph.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));

@@ -2,6 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "NFLookAndFeel.h"
+#include "HardwareButton.h"
 
 /**
     EQ paramétrico gráfico: fica por CIMA do RTA (componente separado, não
@@ -25,7 +26,13 @@ public:
         nodes.push_back({ "HighShelfFreq", "HighShelfGain", "", "", true, false, juce::Colour(0xff6ec6ff) });
         nodes.push_back({ "HighCutFreq", "", "", "HighCutOn", false, false, juce::Colour(0xffff5b5b) });
 
-        setInterceptsMouseClicks(true, false);
+        resetButton.setMomentary(true);
+        resetButton.onClick = [this] { resetSelectedEQ(); };
+        addAndMakeVisible(resetButton);
+
+        // Precisa permitir clique nos filhos (o botão RESET) - por padrão
+        // esse componente intercepta tudo pra si mesmo (arrasto de nós).
+        setInterceptsMouseClicks(true, true);
         startTimerHz(30);
     }
 
@@ -48,16 +55,16 @@ public:
         drawHeader(g, area);
     }
 
+    void resized() override
+    {
+        auto area = getLocalBounds().toFloat().reduced(2.0f);
+        resetButton.setBounds(juce::Rectangle<float>(area.getX() + 4.0f, area.getY() + 4.0f, 52.0f, 20.0f)
+                                   .toNearestInt());
+    }
+
     void mouseDown(const juce::MouseEvent& e) override
     {
         auto area = getLocalBounds().toFloat().reduced(2.0f);
-
-        if (resetButtonBounds(area).contains(e.position))
-        {
-            resetSelectedEQ();
-            return;
-        }
-
         int hit = findNodeNear(e.position, area);
         draggingIndex = hit;
 
@@ -301,31 +308,16 @@ private:
         return juce::String((int) freq) + " Hz";
     }
 
-    /** Retângulo do botão RESET, no canto superior esquerdo do gráfico,
-        ao lado do rótulo PRE EQ / POST EQ. */
-    juce::Rectangle<float> resetButtonBounds(juce::Rectangle<float> area) const
+    /** Rótulo PRE EQ / POST EQ, sempre no canto superior esquerdo (ao lado
+        do botão físico RESET, que é um componente filho de verdade -
+        ver resetButton/resized()), indicando qual EQ está sendo
+        mostrado/editado agora. */
+    void drawHeader(juce::Graphics& g, juce::Rectangle<float> /*area*/)
     {
-        return { area.getX() + 4.0f, area.getY() + 4.0f, 46.0f, 16.0f };
-    }
-
-    /** Rótulo (PRE EQ / POST EQ) + botão RESET, sempre no canto superior
-        esquerdo, indicando qual EQ está sendo mostrado/editado agora. */
-    void drawHeader(juce::Graphics& g, juce::Rectangle<float> area)
-    {
-        auto resetBounds = resetButtonBounds(area);
         auto curveColour = isPre ? juce::Colour(0xffff9a3c) : NFLookAndFeel::kPurple;
-
-        g.setColour(juce::Colours::black.withAlpha(0.55f));
-        g.fillRoundedRectangle(resetBounds, 3.0f);
-        g.setColour(curveColour.withAlpha(0.6f));
-        g.drawRoundedRectangle(resetBounds, 3.0f, 1.0f);
-        g.setColour(curveColour);
-        g.setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
-        g.drawFittedText("RESET", resetBounds.getSmallestIntegerContainer(),
-                          juce::Justification::centred, 1);
-
         juce::String label = isPre ? "PRE EQ" : "POST EQ";
-        auto labelBounds = juce::Rectangle<float>(resetBounds.getRight() + 6.0f, area.getY() + 4.0f, 70.0f, 16.0f);
+        auto labelBounds = juce::Rectangle<float>(resetButton.getRight() + 6.0f, (float) resetButton.getY(),
+                                                    70.0f, (float) resetButton.getHeight());
         g.setColour(curveColour);
         g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
         g.drawFittedText(label, labelBounds.getSmallestIntegerContainer(),
@@ -357,4 +349,5 @@ private:
     bool isPre = true;
     int draggingIndex = -1;
     int hoverIndex = -1;
+    HardwareButton resetButton { "RESET" };
 };
