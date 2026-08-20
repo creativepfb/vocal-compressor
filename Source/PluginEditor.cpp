@@ -19,7 +19,11 @@ namespace
 
     constexpr float knobCentresX[7] = { 0.17887f, 0.27173f, 0.36756f, 0.46339f, 0.55863f, 0.65446f, 0.74821f };
     constexpr float knobCentreY = 0.546656f;
-    constexpr float knobDiameter = 0.058929f;
+    // O círculo preto desenhado na faceplate mede só 99px (0.0589 de 1680),
+    // mas o knob precisa estourar um pouco pra fora dele e chegar perto dos
+    // ticks (medidos a raio 70px) - senão fica pequeno e "perdido" no meio
+    // do anel de marcações. Aqui uso raio ~59.5px (diâmetro ~119px).
+    constexpr float knobDiameter = 119.0f / 1680.0f;
 
     constexpr float valueBoxTop = 0.790047f;
     constexpr float valueBoxBottom = 0.874028f;
