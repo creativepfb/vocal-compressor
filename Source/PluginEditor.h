@@ -7,6 +7,23 @@
 #include "UI/DbReadout.h"
 #include "UI/RTADisplay.h"
 
+/** Segura a faceplate + todos os controles, sempre no tamanho nativo da
+    imagem (1525x920). A janela em si pode ser redimensionada livremente -
+    quem faz a escala visual é o AffineTransform aplicado nessa área, não o
+    layout interno (assim não precisa recalcular nada ao arrastar o canto). */
+class FaceplateArea : public juce::Component
+{
+public:
+    void paint(juce::Graphics& g) override
+    {
+        g.fillAll(juce::Colours::black);
+        if (faceplate.isValid())
+            g.drawImage(faceplate, getLocalBounds().toFloat());
+    }
+
+    juce::Image faceplate;
+};
+
 class VocalCompressorAudioProcessorEditor : public juce::AudioProcessorEditor
 {
 public:
@@ -18,15 +35,17 @@ public:
 
 private:
     static constexpr int numKnobs = 7;
-    static constexpr int numEqKnobs = 8;
+    static constexpr int nativeW = 1525;
+    static constexpr int nativeH = 920;
 
     void setupKnob(int index, juce::Slider& slider);
     void updateValueLabel(int index);
-    void setupEqKnob(int index, juce::Slider& slider, const juce::String& labelText);
 
     VocalCompressorAudioProcessor& audioProcessor;
     NFLookAndFeel nfLookAndFeel;
-    juce::Image faceplate;
+    juce::ComponentBoundsConstrainer constrainer;
+
+    FaceplateArea content;
 
     juce::Slider thresholdSlider, ratioSlider, attackSlider,
                  releaseSlider, driveSlider, makeupSlider, mixSlider;
@@ -36,30 +55,16 @@ private:
     LevelMeter inputMeter, outputMeter;
     DbReadout inputReadout, outputReadout;
 
-    // --- Área provisória abaixo da faceplate (será reposicionada quando a
-    // imagem nova, com esses elementos já desenhados, chegar) ---
     juce::ToggleButton hpfButton { "HPF" };
     juce::ToggleButton bypassButton { "ON" };
-    juce::Label filterCaption { {}, "FILTER" }, bypassCaption { {}, "BYPASS" };
-    RTADisplay rtaDisplay;
 
-    // --- EQ paramétrico: 8 knobs + toggle de Low Cut, provisório também ---
-    juce::Slider lowCutFreqSlider, lowShelfFreqSlider, lowShelfGainSlider,
-                 peakFreqSlider, peakGainSlider, peakQSlider,
-                 highShelfFreqSlider, highShelfGainSlider;
-    juce::Label eqLabels[numEqKnobs];
-    juce::ToggleButton lowCutOnButton { "ON" };
-    juce::Label lowCutCaption { {}, "LOW CUT" };
+    RTADisplay rtaDisplay;
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     std::unique_ptr<SliderAttachment> thresholdAttach, ratioAttach, attackAttach,
                                        releaseAttach, driveAttach, makeupAttach, mixAttach;
-    std::unique_ptr<ButtonAttachment> hpfAttach, bypassAttach, lowCutOnAttach;
-
-    std::unique_ptr<SliderAttachment> lowCutFreqAttach, lowShelfFreqAttach, lowShelfGainAttach,
-                                       peakFreqAttach, peakGainAttach, peakQAttach,
-                                       highShelfFreqAttach, highShelfGainAttach;
+    std::unique_ptr<ButtonAttachment> hpfAttach, bypassAttach;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocalCompressorAudioProcessorEditor)
 };

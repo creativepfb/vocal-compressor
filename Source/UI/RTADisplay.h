@@ -3,9 +3,9 @@
 #include "NFLookAndFeel.h"
 #include "../DSP/SpectrumAnalyzer.h"
 
-/** RTA simplificado: espectro contínuo (20Hz-20kHz, escala log), lido do
-    SpectrumAnalyzer do processor. Placeholder de layout - a curva do EQ em
-    cima disso vem depois. */
+/** RTA em barras (estilo analisador de frequência clássico), lido do
+    SpectrumAnalyzer do processor. A caixa/moldura já vem desenhada na
+    faceplate - aqui só desenha as barras por cima. */
 class RTADisplay : public juce::Component, private juce::Timer
 {
 public:
@@ -17,81 +17,49 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        auto bounds = getLocalBounds().toFloat();
-
-        g.setColour(juce::Colours::black.withAlpha(0.5f));
-        g.fillRoundedRectangle(bounds.translated(0.0f, 1.0f), 4.0f);
-        g.setColour(juce::Colour(0xff06060a));
-        g.fillRoundedRectangle(bounds, 4.0f);
-
-        auto area = bounds.reduced(3.0f);
-        drawGrid(g, area);
-        drawSpectrum(g, area);
-
-        g.setColour(juce::Colour(0xff2a2a30));
-        g.drawRoundedRectangle(bounds, 4.0f, 1.0f);
+        auto area = getLocalBounds().toFloat().reduced(4.0f);
+        drawBars(g, area);
     }
 
 private:
-    static constexpr float minFreq = 20.0f;
-    static constexpr float maxFreq = 20000.0f;
-    static constexpr float minDb = -80.0f;
+    static constexpr float minFreq = 31.0f;
+    static constexpr float maxFreq = 16000.0f;
+    static constexpr float minDb = -70.0f;
     static constexpr float maxDb = 0.0f;
+    static constexpr int numBars = 32;
 
-    float freqToX(float freq, juce::Rectangle<float> area) const
+    void drawBars(juce::Graphics& g, juce::Rectangle<float> area)
     {
-        float t = std::log10(freq / minFreq) / std::log10(maxFreq / minFreq);
-        return area.getX() + t * area.getWidth();
-    }
-
-    void drawGrid(juce::Graphics& g, juce::Rectangle<float> area)
-    {
-        g.setColour(juce::Colour(0xff1c1c22));
-        for (float f : { 100.0f, 1000.0f, 10000.0f })
-        {
-            float x = freqToX(f, area);
-            g.drawVerticalLine(juce::roundToInt(x), area.getY(), area.getBottom());
-        }
-    }
-
-    void drawSpectrum(juce::Graphics& g, juce::Rectangle<float> area)
-    {
-        constexpr int numBins = SpectrumAnalyzer::numBins;
         float binHz = (float) (sampleRate / (double) SpectrumAnalyzer::fftSize);
+        float barWidth = area.getWidth() / (float) numBars;
 
-        juce::Path path;
-        path.startNewSubPath(area.getX(), area.getBottom());
-
-        bool first = true;
-        for (int i = 1; i < numBins; ++i)
+        for (int bar = 0; bar < numBars; ++bar)
         {
-            float freq = (float) i * binHz;
-            if (freq < minFreq)
-                continue;
-            if (freq > maxFreq)
-                break;
+            // Frequência central da barra, em escala logarítmica.
+            float t0 = (float) bar / (float) numBars;
+            float t1 = (float) (bar + 1) / (float) numBars;
+            float freqLo = minFreq * std::pow(maxFreq / minFreq, t0);
+            float freqHi = minFreq * std::pow(maxFreq / minFreq, t1);
 
-            float db = juce::jlimit(minDb, maxDb, analyzer.magnitudesDb[(size_t) i].load());
-            float x = freqToX(freq, area);
-            float y = juce::jmap(db, minDb, maxDb, area.getBottom(), area.getY());
+            int binLo = juce::jmax(1, (int) (freqLo / binHz));
+            int binHi = juce::jmin(SpectrumAnalyzer::numBins - 1, (int) (freqHi / binHz));
 
-            if (first)
-            {
-                path.lineTo(x, y);
-                first = false;
-            }
-            else
-            {
-                path.lineTo(x, y);
-            }
+            float peakDb = minDb;
+            for (int i = binLo; i <= binHi; ++i)
+                peakDb = juce::jmax(peakDb, analyzer.magnitudesDb[(size_t) i].load());
+
+            float fraction = juce::jlimit(0.0f, 1.0f, (peakDb - minDb) / (maxDb - minDb));
+
+            float x = area.getX() + (float) bar * barWidth;
+            float barH = fraction * area.getHeight();
+            juce::Rectangle<float> barRect(x + barWidth * 0.12f, area.getBottom() - barH,
+                                            barWidth * 0.76f, barH);
+
+            g.setColour(NFLookAndFeel::kGreen.withAlpha(0.30f));
+            g.fillRect(barRect.expanded(0.6f, 0.0f));
+            g.setColour(NFLookAndFeel::kGreen);
+            g.fillRect(barRect);
         }
-        path.lineTo(area.getRight(), area.getBottom());
-        path.closeSubPath();
-
-        g.setColour(NFLookAndFeel::kGreen.withAlpha(0.18f));
-        g.fillPath(path);
-        g.setColour(NFLookAndFeel::kGreen.withAlpha(0.75f));
-        g.strokePath(path, juce::PathStrokeType(1.3f));
     }
 
     void timerCallback() override { repaint(); }

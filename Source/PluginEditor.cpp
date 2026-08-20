@@ -3,9 +3,9 @@
 
 namespace
 {
-    // Retângulo em frações (0..1) da imagem de fundo, convertido pra pixels
-    // reais conforme o tamanho atual do editor. Frações medidas por pixel
-    // direto na imagem faceplate-v2.png (1680x643).
+    // Retângulo em frações (0..1) da faceplate, convertido pra pixels reais
+    // na resolução nativa passada (a "content" nunca muda de tamanho
+    // internamente, só é escalada visualmente pelo transform).
     juce::Rectangle<int> fracRect(int w, int h, float x0, float y0, float x1, float y1)
     {
         return { juce::roundToInt(x0 * (float) w), juce::roundToInt(y0 * (float) h),
@@ -17,46 +17,42 @@ namespace
         return fracRect(w, h, cx - width * 0.5f, cy - height * 0.5f, cx + width * 0.5f, cy + height * 0.5f);
     }
 
-    constexpr float knobCentresX[7] = { 0.17887f, 0.27173f, 0.36756f, 0.46339f, 0.55863f, 0.65446f, 0.74821f };
-    constexpr float knobCentreY = 0.546656f;
-    // Bem maior que o círculo preto (99px) e maior que o raio dos ticks
-    // (70px) de propósito - o knob (componente filho) sempre desenha por
-    // cima do fundo, não tem problema ele passar por cima das marcações.
-    // Limite físico: 156px é o menor espaçamento entre dois centros de knob
-    // nessa faceplate (Threshold-Ratio). Uso 154px pra chegar quase no talo
-    // sem eles se tocarem.
-    constexpr float knobDiameter = 154.0f / 1680.0f;
+    // Frações medidas por pixel direto na imagem faceplate-3-rta.png (1525x920).
+    constexpr float knobCentresX[7] = { 0.192131f, 0.300328f, 0.405246f, 0.502951f,
+                                         0.601311f, 0.700984f, 0.802623f };
+    constexpr float knobCentreY = 0.382609f;
+    // Knob nativo (126px) já veio calibrado pela referência pra encaixar
+    // certo no círculo desenhado (118px) - usa direto, sem "estourar" por
+    // conta própria como antes.
+    constexpr float knobDiameter = 126.0f / 1525.0f;
 
-    constexpr float valueBoxTop = 0.790047f;
-    constexpr float valueBoxBottom = 0.874028f;
-    constexpr float valueBoxWidth = 0.069048f;
+    constexpr float valueBoxTop = 0.540217f;
+    constexpr float valueBoxBottom = 0.591304f;
+    constexpr float valueBoxWidth = 0.074098f;
 
     constexpr int decimalPlaces[7] = { 1, 1, 1, 0, 2, 1, 0 };
 
     // INPUT (esquerda)
-    constexpr float inputMeterX0 = 0.054762f, inputMeterX1 = 0.077976f;
-    constexpr float meterY0 = 0.329704f, meterY1 = 0.768274f;
-    constexpr float inReadoutCx = 0.064881f, inReadoutCy = 0.872473f;
-    constexpr float readoutWidth = 0.071429f, readoutHeight = 0.082271f;
-
-    // GR (meio)
-    constexpr float grMeterX0 = 0.831548f, grMeterX1 = 0.853571f;
-    constexpr float grMeterY0 = 0.329704f, grMeterY1 = 0.763608f;
+    constexpr float inputMeterX0 = 0.062295f, inputMeterX1 = 0.092459f;
+    constexpr float meterY0 = 0.236957f, meterY1 = 0.527174f;
+    constexpr float inReadoutX0 = 0.036721f, inReadoutX1 = 0.109508f;
+    constexpr float readoutY0 = 0.570652f, readoutY1 = 0.606522f;
 
     // OUTPUT (direita)
-    constexpr float outputMeterX0 = 0.926786f, outputMeterX1 = 0.95f;
-    constexpr float outReadoutCx = 0.937f;
+    constexpr float outputMeterX0 = 0.919672f, outputMeterX1 = 0.949508f;
+    constexpr float outReadoutX0 = 0.893115f, outReadoutX1 = 0.966557f;
 
-    // Tamanho fixo da área da faceplate (a imagem em si, 65% de 1680x643).
-    // Abaixo disso, duas faixas provisórias desenhadas por código - EQ e
-    // depois Filtro/Bypass/RTA - até a imagem nova (com esses elementos já
-    // desenhados) chegar.
-    constexpr int faceplateW = 1092;
-    constexpr int faceplateH = 418;
-    constexpr int eqRowH = 130;
-    constexpr int extraRowH = 120;
+    // GR (embaixo, mesma coluna do OUTPUT)
+    constexpr float grMeterX0 = 0.913443f, grMeterX1 = 0.944918f;
+    constexpr float grMeterY0 = 0.696739f, grMeterY1 = 0.894565f;
 
-    constexpr int eqDecimalPlaces[8] = { 0, 0, 1, 0, 1, 2, 0, 1 };
+    // Filtro / Bypass / RTA (linha de baixo)
+    constexpr float filterX0 = 0.034754f, filterX1 = 0.141639f;
+    constexpr float filterY0 = 0.789130f, filterY1 = 0.833696f;
+    constexpr float bypassX0 = 0.163934f, bypassX1 = 0.208525f;
+    constexpr float bypassY0 = 0.790217f, bypassY1 = 0.833696f;
+    constexpr float rtaX0 = 0.252459f, rtaX1 = 0.752787f;
+    constexpr float rtaY0 = 0.677174f, rtaY1 = 0.905435f;
 }
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
@@ -66,41 +62,26 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
       inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb),
       rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0)
 {
-    faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplatev2_png, BinaryData::faceplatev2_pngSize);
-    nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::knobpequenopng_png, BinaryData::knobpequenopng_pngSize);
+    content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate3rta_png, BinaryData::faceplate3rta_pngSize);
+    nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::botaopng126px_png, BinaryData::botaopng126px_pngSize);
 
     setLookAndFeel(&nfLookAndFeel);
+
+    addAndMakeVisible(content);
 
     juce::Slider* sliders[numKnobs] = { &thresholdSlider, &ratioSlider, &attackSlider,
                                          &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
     for (int i = 0; i < numKnobs; ++i)
         setupKnob(i, *sliders[i]);
 
-    addAndMakeVisible(grMeter);
-    addAndMakeVisible(inputMeter);
-    addAndMakeVisible(outputMeter);
-    addAndMakeVisible(inputReadout);
-    addAndMakeVisible(outputReadout);
-
-    addAndMakeVisible(hpfButton);
-    addAndMakeVisible(bypassButton);
-    for (auto* caption : { &filterCaption, &bypassCaption, &lowCutCaption })
-    {
-        addAndMakeVisible(*caption);
-        caption->setJustificationType(juce::Justification::centred);
-        caption->setColour(juce::Label::textColourId, NFLookAndFeel::kTextDim);
-        caption->setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
-    }
-    addAndMakeVisible(rtaDisplay);
-    addAndMakeVisible(lowCutOnButton);
-
-    juce::Slider* eqSliders[numEqKnobs] = { &lowCutFreqSlider, &lowShelfFreqSlider, &lowShelfGainSlider,
-                                             &peakFreqSlider, &peakGainSlider, &peakQSlider,
-                                             &highShelfFreqSlider, &highShelfGainSlider };
-    const char* eqNames[numEqKnobs] = { "LC FREQ", "LS FREQ", "LS GAIN", "PEAK FREQ",
-                                         "PEAK GAIN", "PEAK Q", "HS FREQ", "HS GAIN" };
-    for (int i = 0; i < numEqKnobs; ++i)
-        setupEqKnob(i, *eqSliders[i], eqNames[i]);
+    content.addAndMakeVisible(grMeter);
+    content.addAndMakeVisible(inputMeter);
+    content.addAndMakeVisible(outputMeter);
+    content.addAndMakeVisible(inputReadout);
+    content.addAndMakeVisible(outputReadout);
+    content.addAndMakeVisible(hpfButton);
+    content.addAndMakeVisible(bypassButton);
+    content.addAndMakeVisible(rtaDisplay);
 
     auto& apvts = audioProcessor.apvts;
     thresholdAttach = std::make_unique<SliderAttachment>(apvts, "threshold", thresholdSlider);
@@ -112,21 +93,17 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     mixAttach       = std::make_unique<SliderAttachment>(apvts, "mix", mixSlider);
     hpfAttach       = std::make_unique<ButtonAttachment>(apvts, "hpf", hpfButton);
     bypassAttach    = std::make_unique<ButtonAttachment>(apvts, "bypass", bypassButton);
-    lowCutOnAttach  = std::make_unique<ButtonAttachment>(apvts, "lowCutOn", lowCutOnButton);
-
-    lowCutFreqAttach   = std::make_unique<SliderAttachment>(apvts, "lowCutFreq", lowCutFreqSlider);
-    lowShelfFreqAttach = std::make_unique<SliderAttachment>(apvts, "lowShelfFreq", lowShelfFreqSlider);
-    lowShelfGainAttach = std::make_unique<SliderAttachment>(apvts, "lowShelfGain", lowShelfGainSlider);
-    peakFreqAttach     = std::make_unique<SliderAttachment>(apvts, "peakFreq", peakFreqSlider);
-    peakGainAttach     = std::make_unique<SliderAttachment>(apvts, "peakGain", peakGainSlider);
-    peakQAttach        = std::make_unique<SliderAttachment>(apvts, "peakQ", peakQSlider);
-    highShelfFreqAttach  = std::make_unique<SliderAttachment>(apvts, "highShelfFreq", highShelfFreqSlider);
-    highShelfGainAttach  = std::make_unique<SliderAttachment>(apvts, "highShelfGain", highShelfGainSlider);
 
     for (int i = 0; i < numKnobs; ++i)
         updateValueLabel(i);
 
-    setSize(faceplateW, faceplateH + eqRowH + extraRowH);
+    // Janela redimensionável, proporção travada na da faceplate.
+    constrainer.setFixedAspectRatio((double) nativeW / (double) nativeH);
+    constrainer.setSizeLimits(nativeW / 3, nativeH / 3, nativeW * 2, nativeH * 2);
+    setConstrainer(&constrainer);
+    setResizable(true, true);
+
+    setSize(juce::roundToInt(nativeW * 0.68f), juce::roundToInt(nativeH * 0.68f));
 }
 
 VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
@@ -138,7 +115,7 @@ void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& sli
 {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
-    addAndMakeVisible(slider);
+    content.addAndMakeVisible(slider);
 
     slider.onValueChange = [this, index] { updateValueLabel(index); };
 
@@ -147,7 +124,7 @@ void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& sli
     label.setColour(juce::Label::textColourId, NFLookAndFeel::kGreen);
     label.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
     label.setInterceptsMouseClicks(false, false);
-    addAndMakeVisible(label);
+    content.addAndMakeVisible(label);
 }
 
 void VocalCompressorAudioProcessorEditor::updateValueLabel(int index)
@@ -158,50 +135,21 @@ void VocalCompressorAudioProcessorEditor::updateValueLabel(int index)
                                 juce::dontSendNotification);
 }
 
-void VocalCompressorAudioProcessorEditor::setupEqKnob(int index, juce::Slider& slider, const juce::String& labelText)
-{
-    slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    slider.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
-    addAndMakeVisible(slider);
-
-    auto& label = eqLabels[index];
-    label.setJustificationType(juce::Justification::centred);
-    label.setColour(juce::Label::textColourId, NFLookAndFeel::kTextDim);
-    label.setFont(juce::Font(juce::FontOptions(9.5f, juce::Font::bold)));
-    label.setText(labelText, juce::dontSendNotification);
-    addAndMakeVisible(label);
-
-    slider.onValueChange = [&slider, &label, index]
-    {
-        label.setText(juce::String(slider.getValue(), eqDecimalPlaces[index]), juce::dontSendNotification);
-    };
-}
-
 void VocalCompressorAudioProcessorEditor::paint(juce::Graphics& g)
 {
+    // Fundo fora da área de conteúdo (só aparece se a proporção não bater
+    // por algum motivo - normalmente a "content" cobre tudo).
     g.fillAll(juce::Colours::black);
-    if (faceplate.isValid())
-        g.drawImage(faceplate, juce::Rectangle<float>(0.0f, 0.0f, (float) faceplateW, (float) faceplateH));
-
-    // Faixas provisórias (EQ, e Filtro/Bypass/RTA) até a faceplate nova chegar.
-    auto eqArea = juce::Rectangle<float>(0.0f, (float) faceplateH, (float) faceplateW, (float) eqRowH);
-    g.setColour(juce::Colour(0xff140a24));
-    g.fillRect(eqArea);
-    g.setColour(juce::Colour(0xff3a2a54));
-    g.drawLine(0.0f, (float) faceplateH, (float) faceplateW, (float) faceplateH, 1.5f);
-
-    auto extraArea = juce::Rectangle<float>(0.0f, (float) (faceplateH + eqRowH), (float) faceplateW, (float) extraRowH);
-    g.setColour(juce::Colour(0xff1c0f2e));
-    g.fillRect(extraArea);
-    g.drawLine(0.0f, (float) (faceplateH + eqRowH), (float) faceplateW, (float) (faceplateH + eqRowH), 1.5f);
 }
 
 void VocalCompressorAudioProcessorEditor::resized()
 {
-    // Área da faceplate: fixa, não depende do tamanho da janela (que só
-    // cresce pra baixo, pra caber as faixas provisórias).
-    const int w = faceplateW;
-    const int h = faceplateH;
+    float scale = (float) getWidth() / (float) nativeW;
+    content.setTransform(juce::AffineTransform::scale(scale));
+    content.setBounds(0, 0, nativeW, nativeH);
+
+    const int w = nativeW;
+    const int h = nativeH;
 
     juce::Slider* sliders[numKnobs] = { &thresholdSlider, &ratioSlider, &attackSlider,
                                          &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
@@ -215,45 +163,14 @@ void VocalCompressorAudioProcessorEditor::resized()
     }
 
     inputMeter.setBounds(fracRect(w, h, inputMeterX0, meterY0, inputMeterX1, meterY1));
-    inputReadout.setBounds(fracRectCentred(w, h, inReadoutCx, inReadoutCy, readoutWidth, readoutHeight));
+    inputReadout.setBounds(fracRect(w, h, inReadoutX0, readoutY0, inReadoutX1, readoutY1));
+
+    outputMeter.setBounds(fracRect(w, h, outputMeterX0, meterY0, outputMeterX1, meterY1));
+    outputReadout.setBounds(fracRect(w, h, outReadoutX0, readoutY0, outReadoutX1, readoutY1));
 
     grMeter.setBounds(fracRect(w, h, grMeterX0, grMeterY0, grMeterX1, grMeterY1));
 
-    outputMeter.setBounds(fracRect(w, h, outputMeterX0, meterY0, outputMeterX1, meterY1));
-    outputReadout.setBounds(fracRectCentred(w, h, outReadoutCx, inReadoutCy, readoutWidth, readoutHeight));
-
-    // --- Faixa de EQ (8 knobs + toggle de Low Cut) ---
-    auto eqArea = juce::Rectangle<int>(0, faceplateH, faceplateW, eqRowH).reduced(12);
-
-    auto lowCutCol = eqArea.removeFromLeft(70);
-    lowCutCaption.setBounds(lowCutCol.removeFromTop(16));
-    lowCutOnButton.setBounds(lowCutCol.withSizeKeepingCentre(56, 20));
-
-    eqArea.removeFromLeft(10);
-
-    juce::Slider* eqSliders[numEqKnobs] = { &lowCutFreqSlider, &lowShelfFreqSlider, &lowShelfGainSlider,
-                                             &peakFreqSlider, &peakGainSlider, &peakQSlider,
-                                             &highShelfFreqSlider, &highShelfGainSlider };
-    int eqKnobWidth = eqArea.getWidth() / numEqKnobs;
-    for (int i = 0; i < numEqKnobs; ++i)
-    {
-        auto col = eqArea.removeFromLeft(eqKnobWidth);
-        eqLabels[i].setBounds(col.removeFromTop(14));
-        eqSliders[i]->setBounds(col.reduced(4));
-    }
-
-    // --- Faixa provisória embaixo: Filtro | Bypass | RTA ---
-    auto extra = juce::Rectangle<int>(0, faceplateH + eqRowH, faceplateW, extraRowH).reduced(12);
-
-    auto filterCol = extra.removeFromLeft(90);
-    filterCaption.setBounds(filterCol.removeFromTop(16));
-    hpfButton.setBounds(filterCol.withSizeKeepingCentre(80, 22));
-
-    extra.removeFromLeft(14);
-    auto bypassCol = extra.removeFromLeft(90);
-    bypassCaption.setBounds(bypassCol.removeFromTop(16));
-    bypassButton.setBounds(bypassCol.withSizeKeepingCentre(80, 22));
-
-    extra.removeFromLeft(14);
-    rtaDisplay.setBounds(extra);
+    hpfButton.setBounds(fracRect(w, h, filterX0, filterY0, filterX1, filterY1));
+    bypassButton.setBounds(fracRect(w, h, bypassX0, bypassY0, bypassX1, bypassY1));
+    rtaDisplay.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
 }
