@@ -132,7 +132,9 @@ void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& sli
     auto& label = valueLabels[index];
     label.setJustificationType(juce::Justification::centred);
     label.setColour(juce::Label::textColourId, NFLookAndFeel::kKnobGreen);
-    label.setFont(juce::Font(juce::FontOptions(30.0f, juce::Font::bold)));
+    label.setFont(juce::Font(juce::FontOptions(38.0f, juce::Font::bold)));
+    label.setMinimumHorizontalScale(0.75f);
+    label.setBorderSize(juce::BorderSize<int>(0, 1, 0, 1));
     label.setInterceptsMouseClicks(false, false);
     content.addAndMakeVisible(label);
 }
