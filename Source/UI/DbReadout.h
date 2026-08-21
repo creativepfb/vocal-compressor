@@ -23,7 +23,7 @@ public:
     void paint(juce::Graphics& g) override
     {
         g.setColour(NFLookAndFeel::kGreen);
-        g.setFont(juce::Font(juce::FontOptions(36.0f, juce::Font::bold)));
+        g.setFont(juce::Font(juce::FontOptions(34.0f, juce::Font::bold)));
         g.drawText(text, getLocalBounds(), juce::Justification::centred, false);
     }
 
