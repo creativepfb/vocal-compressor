@@ -36,6 +36,11 @@ namespace
 
     constexpr int decimalPlaces[7] = { 1, 1, 1, 0, 2, 1, 0 };
 
+    // Tamanho de fonte dos displays abaixo dos KNOBS - configuração
+    // própria, independente da fonte dos displays de INPUT/OUTPUT
+    // (DbReadout.h tem a dela). Mudar um não afeta o outro.
+    constexpr float knobValueFontSize = 32.0f;
+
     // Posição do slider de Ratio no array `sliders` usado em vários pontos
     // deste arquivo - único knob com o texto/arco especiais de modo Limiter.
     constexpr int ratioKnobIndex = 1;
@@ -168,7 +173,7 @@ void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& sli
     slider.onValueChange = [this, index] { updateValueLabel(index); };
 
     auto& readout = valueLabels[index];
-    readout.setFontHeight(34.0f);
+    readout.setFontHeight(knobValueFontSize);
     readout.setInterceptsMouseClicks(false, false);
     content.addAndMakeVisible(readout);
 }
@@ -190,7 +195,7 @@ void VocalCompressorAudioProcessorEditor::updateValueLabel(int index)
     }
 
     if (index == ratioKnobIndex)
-        valueLabels[index].setFontHeight(34.0f);
+        valueLabels[index].setFontHeight(knobValueFontSize);
 
     valueLabels[index].setValueText(juce::String(sliders[index]->getValue(), decimalPlaces[index]));
 }
