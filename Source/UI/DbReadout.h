@@ -11,7 +11,7 @@ public:
     {
         setJustificationType(juce::Justification::centred);
         setColour(juce::Label::textColourId, NFLookAndFeel::kGreen);
-        setFont(juce::Font(juce::FontOptions(17.0f, juce::Font::bold)));
+        setFont(juce::Font(juce::FontOptions(23.0f, juce::Font::bold)));
         setInterceptsMouseClicks(false, false);
         startTimerHz(12);
     }
