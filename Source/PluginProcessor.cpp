@@ -20,6 +20,14 @@ namespace
             prefix + "LowCutFreq", displayPrefix + " Low Cut Freq",
             juce::NormalisableRange<float>(20.0f, 500.0f, 1.0f, 0.4f), 80.0f, "Hz"));
 
+        // Bypass individual de cada banda (duplo clique na bolinha no
+        // gráfico) - independente do enable geral do estágio (Enabled) e
+        // dos outros bypasses de banda. Low Cut/High Cut já tinham esse
+        // conceito (LowCutOn/HighCutOn); Low Shelf/Peak/High Shelf ganham
+        // o mesmo aqui, default ligado (igual ao comportamento de sempre).
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            prefix + "LowShelfOn", displayPrefix + " Low Shelf On", true));
+
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             prefix + "LowShelfFreq", displayPrefix + " Low Shelf Freq",
             juce::NormalisableRange<float>(20.0f, 500.0f, 1.0f, 0.4f), 150.0f, "Hz"));
@@ -27,6 +35,9 @@ namespace
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             prefix + "LowShelfGain", displayPrefix + " Low Shelf Gain",
             juce::NormalisableRange<float>(-15.0f, 15.0f, 0.1f), 0.0f, "dB"));
+
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            prefix + "PeakOn", displayPrefix + " Peak On", true));
 
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             prefix + "PeakFreq", displayPrefix + " Peak Freq",
@@ -39,6 +50,9 @@ namespace
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             prefix + "PeakQ", displayPrefix + " Peak Q",
             juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f, 0.4f), 1.0f));
+
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            prefix + "HighShelfOn", displayPrefix + " High Shelf On", true));
 
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             prefix + "HighShelfFreq", displayPrefix + " High Shelf Freq",

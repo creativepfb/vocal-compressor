@@ -25,10 +25,14 @@ public:
     EQGraphComponent(juce::AudioProcessorValueTreeState& stateIn, double sampleRateIn)
         : apvts(stateIn), sampleRate(sampleRateIn > 0.0 ? sampleRateIn : 44100.0)
     {
+        // onBase de cada nó = parâmetro de bypass INDIVIDUAL daquela banda
+        // (duplo clique na bolinha liga/desliga - ver mouseDoubleClick).
+        // Não confundir com o "Enabled" do estágio inteiro (preOnButton/
+        // postOnButton) nem entre si - cada banda é independente.
         nodes.push_back({ "LowCutFreq", "", "", "LowCutOn", false, false, juce::Colour(0xffff5b5b) });
-        nodes.push_back({ "LowShelfFreq", "LowShelfGain", "", "", true, false, juce::Colour(0xffffd23f) });
-        nodes.push_back({ "PeakFreq", "PeakGain", "PeakQ", "", true, true, NFLookAndFeel::kKnobGreen });
-        nodes.push_back({ "HighShelfFreq", "HighShelfGain", "", "", true, false, juce::Colour(0xff6ec6ff) });
+        nodes.push_back({ "LowShelfFreq", "LowShelfGain", "", "LowShelfOn", true, false, juce::Colour(0xffffd23f) });
+        nodes.push_back({ "PeakFreq", "PeakGain", "PeakQ", "PeakOn", true, true, NFLookAndFeel::kKnobGreen });
+        nodes.push_back({ "HighShelfFreq", "HighShelfGain", "", "HighShelfOn", true, false, juce::Colour(0xff6ec6ff) });
         nodes.push_back({ "HighCutFreq", "", "", "HighCutOn", false, false, juce::Colour(0xffff5b5b) });
 
         resetButton.setMomentary(true);
@@ -75,12 +79,7 @@ public:
             return; // HPF não tem nós arrastáveis (filtro fixo, só on/off)
 
         auto area = getLocalBounds().toFloat().reduced(2.0f);
-        int hit = findNodeNear(e.position, area);
-        draggingIndex = hit;
-
-        if (hit >= 0 && nodes[(size_t) hit].onBase.isNotEmpty())
-            setNormalized(nodes[(size_t) hit].onBase, 1.0f);
-
+        draggingIndex = findNodeNear(e.position, area);
         repaint();
     }
 
@@ -103,6 +102,30 @@ public:
     void mouseUp(const juce::MouseEvent&) override
     {
         draggingIndex = -1;
+    }
+
+    /** Duplo clique numa bolinha liga/desliga o BYPASS individual daquela
+        banda - a bolinha continua no lugar, frequência/ganho/Q continuam
+        guardados, só para (ou volta) de atuar no áudio. Usa o mecanismo
+        de duplo clique nativo do JUCE (não detecção manual de 2 cliques),
+        então o clique simples (seleção/arrasto) continua 100% intocado. */
+    void mouseDoubleClick(const juce::MouseEvent& e) override
+    {
+        if (selected == SelectedFilter::Hpf)
+            return;
+
+        auto area = getLocalBounds().toFloat().reduced(2.0f);
+        int hit = findNodeNear(e.position, area);
+        if (hit < 0)
+            return;
+
+        auto& n = nodes[(size_t) hit];
+        if (n.onBase.isEmpty())
+            return;
+
+        bool currentlyOn = getReal(n.onBase) > 0.5f;
+        setNormalized(n.onBase, currentlyOn ? 0.0f : 1.0f);
+        repaint();
     }
 
     void mouseMove(const juce::MouseEvent& e) override
@@ -230,15 +253,18 @@ private:
             mag *= juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, juce::jmax(20.0f, getReal("LowCutFreq")))
                        ->getMagnitudeForFrequency((double) freq, sampleRate);
 
-        mag *= juce::dsp::IIR::Coefficients<float>::makeLowShelf(sampleRate, juce::jmax(20.0f, getReal("LowShelfFreq")), 0.707f,
-                   juce::Decibels::decibelsToGain(getReal("LowShelfGain")))->getMagnitudeForFrequency((double) freq, sampleRate);
+        if (getReal("LowShelfOn") > 0.5f)
+            mag *= juce::dsp::IIR::Coefficients<float>::makeLowShelf(sampleRate, juce::jmax(20.0f, getReal("LowShelfFreq")), 0.707f,
+                       juce::Decibels::decibelsToGain(getReal("LowShelfGain")))->getMagnitudeForFrequency((double) freq, sampleRate);
 
-        mag *= juce::dsp::IIR::Coefficients<float>::makePeakFilter(sampleRate, juce::jmax(20.0f, getReal("PeakFreq")),
-                   juce::jmax(0.1f, getReal("PeakQ")), juce::Decibels::decibelsToGain(getReal("PeakGain")))
-                   ->getMagnitudeForFrequency((double) freq, sampleRate);
+        if (getReal("PeakOn") > 0.5f)
+            mag *= juce::dsp::IIR::Coefficients<float>::makePeakFilter(sampleRate, juce::jmax(20.0f, getReal("PeakFreq")),
+                       juce::jmax(0.1f, getReal("PeakQ")), juce::Decibels::decibelsToGain(getReal("PeakGain")))
+                       ->getMagnitudeForFrequency((double) freq, sampleRate);
 
-        mag *= juce::dsp::IIR::Coefficients<float>::makeHighShelf(sampleRate, juce::jmax(20.0f, getReal("HighShelfFreq")), 0.707f,
-                   juce::Decibels::decibelsToGain(getReal("HighShelfGain")))->getMagnitudeForFrequency((double) freq, sampleRate);
+        if (getReal("HighShelfOn") > 0.5f)
+            mag *= juce::dsp::IIR::Coefficients<float>::makeHighShelf(sampleRate, juce::jmax(20.0f, getReal("HighShelfFreq")), 0.707f,
+                       juce::Decibels::decibelsToGain(getReal("HighShelfGain")))->getMagnitudeForFrequency((double) freq, sampleRate);
 
         if (getReal("HighCutOn") > 0.5f)
             mag *= juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, juce::jmax(200.0f, getReal("HighCutFreq")))
@@ -378,9 +404,11 @@ private:
         }
 
         static const char* bases[] = {
-            "LowCutOn", "LowCutFreq", "LowShelfFreq", "LowShelfGain",
-            "PeakFreq", "PeakGain", "PeakQ",
-            "HighShelfFreq", "HighShelfGain", "HighCutOn", "HighCutFreq"
+            "LowCutOn", "LowCutFreq",
+            "LowShelfOn", "LowShelfFreq", "LowShelfGain",
+            "PeakOn", "PeakFreq", "PeakGain", "PeakQ",
+            "HighShelfOn", "HighShelfFreq", "HighShelfGain",
+            "HighCutOn", "HighCutFreq"
         };
 
         for (auto* base : bases)

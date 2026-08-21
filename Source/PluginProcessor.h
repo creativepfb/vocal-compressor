@@ -11,11 +11,14 @@ struct EqStageParams
     std::atomic<float>* enabled       = nullptr;
     std::atomic<float>* lowCutOn      = nullptr;
     std::atomic<float>* lowCutFreq    = nullptr;
+    std::atomic<float>* lowShelfOn    = nullptr;
     std::atomic<float>* lowShelfFreq  = nullptr;
     std::atomic<float>* lowShelfGain  = nullptr;
+    std::atomic<float>* peakOn        = nullptr;
     std::atomic<float>* peakFreq      = nullptr;
     std::atomic<float>* peakGain      = nullptr;
     std::atomic<float>* peakQ         = nullptr;
+    std::atomic<float>* highShelfOn   = nullptr;
     std::atomic<float>* highShelfFreq = nullptr;
     std::atomic<float>* highShelfGain = nullptr;
     std::atomic<float>* highCutOn     = nullptr;
@@ -26,11 +29,14 @@ struct EqStageParams
         enabled       = apvts.getRawParameterValue(prefix + "Enabled");
         lowCutOn      = apvts.getRawParameterValue(prefix + "LowCutOn");
         lowCutFreq    = apvts.getRawParameterValue(prefix + "LowCutFreq");
+        lowShelfOn    = apvts.getRawParameterValue(prefix + "LowShelfOn");
         lowShelfFreq  = apvts.getRawParameterValue(prefix + "LowShelfFreq");
         lowShelfGain  = apvts.getRawParameterValue(prefix + "LowShelfGain");
+        peakOn        = apvts.getRawParameterValue(prefix + "PeakOn");
         peakFreq      = apvts.getRawParameterValue(prefix + "PeakFreq");
         peakGain      = apvts.getRawParameterValue(prefix + "PeakGain");
         peakQ         = apvts.getRawParameterValue(prefix + "PeakQ");
+        highShelfOn   = apvts.getRawParameterValue(prefix + "HighShelfOn");
         highShelfFreq = apvts.getRawParameterValue(prefix + "HighShelfFreq");
         highShelfGain = apvts.getRawParameterValue(prefix + "HighShelfGain");
         highCutOn     = apvts.getRawParameterValue(prefix + "HighCutOn");
@@ -40,9 +46,9 @@ struct EqStageParams
     void applyTo(VoiceEQ& eq) const
     {
         eq.setParameters(lowCutOn->load() > 0.5f, lowCutFreq->load(),
-                          lowShelfFreq->load(), lowShelfGain->load(),
-                          peakFreq->load(), peakGain->load(), peakQ->load(),
-                          highShelfFreq->load(), highShelfGain->load(),
+                          lowShelfOn->load() > 0.5f, lowShelfFreq->load(), lowShelfGain->load(),
+                          peakOn->load() > 0.5f, peakFreq->load(), peakGain->load(), peakQ->load(),
+                          highShelfOn->load() > 0.5f, highShelfFreq->load(), highShelfGain->load(),
                           highCutOn->load() > 0.5f, highCutFreq->load());
     }
 };

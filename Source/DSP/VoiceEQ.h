@@ -4,6 +4,11 @@
 /**
     EQ paramétrico de 5 bandas (Low Cut + Low Shelf + Peak/Bell + High Shelf
     + High Cut), processado antes do compressor. Uma instância por canal.
+
+    Cada banda tem seu próprio bypass independente (bandOn) - quando
+    desligada, a banda não contribui em nada pro sinal, mas os parâmetros
+    dela (freq/gain/Q) continuam sendo atualizados normalmente, prontos
+    pra quando for religada.
 */
 class VoiceEQ
 {
@@ -19,12 +24,15 @@ public:
     }
 
     void setParameters(bool lowCutOnIn, float lowCutFreq,
-                        float lowShelfFreq, float lowShelfGainDb,
-                        float peakFreq, float peakGainDb, float peakQ,
-                        float highShelfFreq, float highShelfGainDb,
+                        bool lowShelfOnIn, float lowShelfFreq, float lowShelfGainDb,
+                        bool peakOnIn, float peakFreq, float peakGainDb, float peakQ,
+                        bool highShelfOnIn, float highShelfFreq, float highShelfGainDb,
                         bool highCutOnIn, float highCutFreq)
     {
         lowCutOn = lowCutOnIn;
+        lowShelfOn = lowShelfOnIn;
+        peakOn = peakOnIn;
+        highShelfOn = highShelfOnIn;
         highCutOn = highCutOnIn;
 
         *lowCut.coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(
@@ -51,9 +59,12 @@ public:
         float x = input;
         if (lowCutOn)
             x = lowCut.processSample(x);
-        x = lowShelf.processSample(x);
-        x = peak.processSample(x);
-        x = highShelf.processSample(x);
+        if (lowShelfOn)
+            x = lowShelf.processSample(x);
+        if (peakOn)
+            x = peak.processSample(x);
+        if (highShelfOn)
+            x = highShelf.processSample(x);
         if (highCutOn)
             x = highCut.processSample(x);
         return x;
@@ -62,6 +73,9 @@ public:
 private:
     double sampleRate = 44100.0;
     bool lowCutOn = false;
+    bool lowShelfOn = true;
+    bool peakOn = true;
+    bool highShelfOn = true;
     bool highCutOn = false;
 
     juce::dsp::IIR::Filter<float> lowCut, lowShelf, peak, highShelf, highCut;
