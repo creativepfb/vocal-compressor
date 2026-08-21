@@ -49,7 +49,16 @@ namespace
     constexpr float inputMeterX0 = 0.062295f, inputMeterX1 = 0.092459f;
     constexpr float meterY0 = 0.236957f, meterY1 = 0.527174f;
     constexpr float inReadoutX0 = 0.036721f, inReadoutX1 = 0.109508f;
-    constexpr float readoutY0 = 0.570652f, readoutY1 = 0.606522f;
+    // ALTURA REAL do componente do texto (não é o tamanho da caixa preta
+    // impressa na faceplate, que é só ~38px) - propositalmente maior que
+    // a fonte de 36pt do DbReadout, porque juce::Label usa drawFittedText
+    // por baixo dos panos: se o componente for mais baixo que a fonte
+    // pedida, o Label ENCOLHE o texto sozinho pra caber, silenciosamente
+    // anulando qualquer setFont() maior (foi exatamente isso que aconteceu
+    // antes - só aumentar a fonte não bastava). O texto (sem descendentes,
+    // só dígitos/"-"/"."/"inf") fica visualmente dentro da caixa impressa
+    // mesmo com o componente um pouco mais alto que ela.
+    constexpr float readoutY0 = 0.563587f, readoutY1 = 0.613587f;
 
     // OUTPUT (direita)
     constexpr float outputMeterX0 = 0.919672f, outputMeterX1 = 0.949508f;
