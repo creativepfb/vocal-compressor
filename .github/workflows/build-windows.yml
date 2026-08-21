@@ -1,0 +1,49 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Clone JUCE
+        run: git clone --depth 1 --branch master https://github.com/juce-framework/JUCE.git JUCE
+
+      - name: Configure
+        run: cmake -B build -A x64
+
+      - name: Build (Release)
+        run: cmake --build build --config Release
+
+      - name: Package ZIP (teste rápido, sem instalador)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item -Recurse "build/VocalCompressor_artefacts/Release/VST3/Vocal Compressor.vst3" "dist/"
+          Copy-Item "build/VocalCompressor_artefacts/Release/Standalone/Vocal Compressor.exe" "dist/"
+          Compress-Archive -Path "dist/*" -DestinationPath "VocalCompressor-Windows.zip" -Force
+
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\windows\VocalCompressor.iss"
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VocalCompressor-Windows-ZIP
+          path: VocalCompressor-Windows.zip
+          if-no-files-found: error
+
+      - name: Upload Installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VocalCompressor-Windows-Installer
+          path: installer_output/VocalCompressor-Windows-Installer.exe
+          if-no-files-found: error
