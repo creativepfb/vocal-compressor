@@ -35,7 +35,7 @@ target_sources(VocalCompressor
 
 juce_add_binary_data(VocalCompressorAssets
     SOURCES
-        Source/Resources/faceplate-5.png
+        Source/Resources/faceplate-6.png
         Source/Resources/botao-png-126px.png
 )
 

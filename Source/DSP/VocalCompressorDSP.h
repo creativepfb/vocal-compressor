@@ -96,18 +96,13 @@ public:
         float satNormalise = juce::jmax(0.35f, std::tanh(driveAmount));
         float output = driven / satNormalise;
 
-        float finalOutput = output * makeupGainLinear;
-
-        // Proteção final do modo Limiter: teto absoluto baseado no
-        // threshold, aplicado DEPOIS de Drive e Makeup - garante que
-        // nenhum dos dois consiga furar o teto.
-        if (isLimiterMode)
-        {
-            float ceilingLinear = dbToLinear(thresholdDb);
-            finalOutput = juce::jlimit(-ceilingLinear, ceilingLinear, finalOutput);
-        }
-
-        return finalOutput;
+        // O teto final do modo Limiter (fixo em -0.5dBFS) NÃO fica aqui -
+        // esse estágio só faz Drive+Makeup. O teto de verdade é aplicado
+        // no fim de TODA a cadeia (depois do Post EQ), em
+        // PluginProcessor::processBlock, porque precisa valer pro sinal
+        // realmente final que sai pro output, não só pra saída do
+        // compressor isolado.
+        return output * makeupGainLinear;
     }
 
     // Usado pelo medidor de GR na GUI

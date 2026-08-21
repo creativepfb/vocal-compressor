@@ -79,7 +79,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
       rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
       eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0)
 {
-    content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate5_png, BinaryData::faceplate5_pngSize);
+    content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate6_png, BinaryData::faceplate6_pngSize);
     nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::botaopng126px_png, BinaryData::botaopng126px_pngSize);
 
     setLookAndFeel(&nfLookAndFeel);

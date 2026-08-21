@@ -180,11 +180,19 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 
     float mix = mixParam->load() / 100.0f;
 
+    // Modo Limiter (Ratio no extremo, ver DSP/RatioLimiter.h): teto final
+    // FIXO em -0.5dBFS, aplicado depois de TUDO (inclusive Post EQ) - não
+    // é o mesmo teto interno do compressor (esse cuida só de Drive/Makeup
+    // dentro do próprio estágio de compressão). L e R sempre têm o mesmo
+    // ratio (parâmetro único), então checar só compressorL já basta.
+    bool limiterCeilingActive = compressorL.isInLimiterMode();
+    const float finalCeilingLinear = juce::Decibels::decibelsToGain(-0.5f);
+
     if (!bypassed)
     {
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
-            // INPUT -> PRE EQ -> COMPRESSOR -> POST EQ -> (RTA) -> OUTPUT
+            // INPUT -> PRE EQ -> COMPRESSOR -> MIX -> POST EQ -> TETO FINAL (só no modo Limiter) -> OUTPUT
             // O compressor tem um lookahead fixo interno (ver
             // VocalCompressorDSP) que atrasa o sinal em alguns samples -
             // por isso o blend de Mix usa getLastDelayedInput() (o preL
@@ -193,14 +201,16 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
             float preL = preOn ? preEqL.processSample(left[i]) : left[i];
             float wetL = compressorL.processSample(preL);
             float mixedL = compressorL.getLastDelayedInput() * (1.0f - mix) + wetL * mix;
-            left[i] = postOn ? postEqL.processSample(mixedL) : mixedL;
+            float postL = postOn ? postEqL.processSample(mixedL) : mixedL;
+            left[i] = limiterCeilingActive ? juce::jlimit(-finalCeilingLinear, finalCeilingLinear, postL) : postL;
 
             if (right != nullptr)
             {
                 float preR = preOn ? preEqR.processSample(right[i]) : right[i];
                 float wetR = compressorR.processSample(preR);
                 float mixedR = compressorR.getLastDelayedInput() * (1.0f - mix) + wetR * mix;
-                right[i] = postOn ? postEqR.processSample(mixedR) : mixedR;
+                float postR = postOn ? postEqR.processSample(mixedR) : mixedR;
+                right[i] = limiterCeilingActive ? juce::jlimit(-finalCeilingLinear, finalCeilingLinear, postR) : postR;
             }
         }
 
