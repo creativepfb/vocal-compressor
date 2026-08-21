@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "../DSP/RatioLimiter.h"
 
 /**
     Visual da marca NF: preto/metal escuro com acentos roxo/verde neon.
@@ -20,6 +21,10 @@ public:
     static const juce::Colour kYellow;
     static const juce::Colour kTextLight;
     static const juce::Colour kTextDim;
+    // Violeta/magenta fluorescente do modo Limiter (Ratio no extremo) -
+    // precisa contrastar claramente com o roxo do faceplate, não pode
+    // parecer erro/clipping, por isso não é vermelho.
+    static const juce::Colour kLimiterViolet;
 
     NFLookAndFeel()
     {
@@ -33,9 +38,14 @@ public:
         padrão de skin de plugin. Precisa ser setada antes do primeiro paint. */
     juce::Image knobImage;
 
+    /** Único slider (o de Ratio) cujo arco precisa mudar pra violeta
+        quando estiver no modo Limiter - setado pelo editor depois de criar
+        o ratioSlider. Os outros knobs nunca são afetados. */
+    void setLimiterAwareSlider(juce::Slider* slider) { limiterAwareSlider = slider; }
+
     void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
                            float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
-                           juce::Slider&) override
+                           juce::Slider& slider) override
     {
         if (!knobImage.isValid())
             return;
@@ -73,12 +83,20 @@ public:
 
         if (rotationFromRest > 0.0001f)
         {
+            // Arco fica violeta/magenta fluorescente só pro slider de
+            // Ratio, e só quando ele está no extremo (modo Limiter) - o
+            // pontinho do knob (parte da imagem PNG) continua sempre
+            // verde, só o arco desenhado aqui muda de cor.
+            bool limiterActive = (limiterAwareSlider == &slider)
+                                    && RatioLimiter::isLimiterMode((float) slider.getValue());
+            juce::Colour arcColour = limiterActive ? kLimiterViolet : kKnobGreen;
+
             juce::Path valueArc;
             valueArc.addCentredArc(centre.x, centre.y, arcRadius, arcRadius, 0.0f, rotaryStartAngle, angle, true);
 
-            g.setColour(kKnobGreen.withAlpha(0.30f));
+            g.setColour(arcColour.withAlpha(0.30f));
             g.strokePath(valueArc, juce::PathStrokeType(8.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-            g.setColour(kKnobGreen);
+            g.setColour(arcColour);
             g.strokePath(valueArc, juce::PathStrokeType(5.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
     }
@@ -165,6 +183,9 @@ public:
         g.setColour(kRed);
         g.fillRoundedRectangle(fillRect, 2.0f);
     }
+
+private:
+    juce::Slider* limiterAwareSlider = nullptr;
 };
 
 inline const juce::Colour NFLookAndFeel::kBackground { 0xff0b0b0d };
@@ -176,3 +197,4 @@ inline const juce::Colour NFLookAndFeel::kRed        { 0xffff3b3b };
 inline const juce::Colour NFLookAndFeel::kYellow     { 0xffffd23f };
 inline const juce::Colour NFLookAndFeel::kTextLight  { 0xffe8e8ec };
 inline const juce::Colour NFLookAndFeel::kTextDim    { 0xff8a8a92 };
+inline const juce::Colour NFLookAndFeel::kLimiterViolet { 0xffd000ff };

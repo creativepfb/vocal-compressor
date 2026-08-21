@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "DSP/RatioLimiter.h"
 #include <BinaryData.h>
 
 namespace
@@ -34,6 +35,10 @@ namespace
     constexpr float valueBoxWidth = 0.074098f;
 
     constexpr int decimalPlaces[7] = { 1, 1, 1, 0, 2, 1, 0 };
+
+    // Posição do slider de Ratio no array `sliders` usado em vários pontos
+    // deste arquivo - único knob com o texto/arco especiais de modo Limiter.
+    constexpr int ratioKnobIndex = 1;
 
     // INPUT (esquerda)
     constexpr float inputMeterX0 = 0.062295f, inputMeterX1 = 0.092459f;
@@ -85,6 +90,11 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
                                          &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
     for (int i = 0; i < numKnobs; ++i)
         setupKnob(i, *sliders[i]);
+
+    // Arco do Ratio muda pra violeta fluorescente quando ele entra no
+    // modo Limiter (ver NFLookAndFeel::drawRotarySlider) - nenhum outro
+    // knob é afetado.
+    nfLookAndFeel.setLimiterAwareSlider(&ratioSlider);
 
     content.addAndMakeVisible(grMeter);
     content.addAndMakeVisible(inputMeter);
@@ -167,6 +177,21 @@ void VocalCompressorAudioProcessorEditor::updateValueLabel(int index)
 {
     juce::Slider* sliders[numKnobs] = { &thresholdSlider, &ratioSlider, &attackSlider,
                                          &releaseSlider, &driveSlider, &makeupSlider, &mixSlider };
+
+    // Ratio no extremo máximo (modo Limiter, ver DSP/RatioLimiter.h) troca
+    // o número por "LIMITER" - texto bem mais largo que "20.0", por isso
+    // usa uma fonte menor só nesse estado (ValueReadout não faz auto-
+    // shrink de propósito, então precisa caber de verdade).
+    if (index == ratioKnobIndex && RatioLimiter::isLimiterMode((float) ratioSlider.getValue()))
+    {
+        valueLabels[index].setFontHeight(16.0f);
+        valueLabels[index].setValueText("LIMITER");
+        return;
+    }
+
+    if (index == ratioKnobIndex)
+        valueLabels[index].setFontHeight(34.0f);
+
     valueLabels[index].setValueText(juce::String(sliders[index]->getValue(), decimalPlaces[index]));
 }
 

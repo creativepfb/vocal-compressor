@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "DSP/RatioLimiter.h"
 
 namespace
 {
@@ -90,7 +91,7 @@ VocalCompressorAudioProcessor::createParameterLayout()
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "ratio", "Ratio",
-        juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.5f), 4.0f, ":1"));
+        juce::NormalisableRange<float>(1.0f, RatioLimiter::ratioMax, 0.1f, 0.5f), 4.0f, ":1"));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "attack", "Attack",
@@ -132,6 +133,10 @@ void VocalCompressorAudioProcessor::prepareToPlay(double sampleRate, int samples
 
     compressorL.prepare(sampleRate);
     compressorR.prepare(sampleRate);
+
+    // Latência fixa do lookahead do compressor (sempre a mesma, não muda
+    // girando o Ratio - só recalculada aqui se a sample rate mudar).
+    setLatencySamples(compressorL.getLookaheadSamples());
 
     juce::dsp::ProcessSpec spec { sampleRate, (juce::uint32) samplesPerBlock, 1 };
     preEqL.prepare(spec);
@@ -180,16 +185,21 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
             // INPUT -> PRE EQ -> COMPRESSOR -> POST EQ -> (RTA) -> OUTPUT
+            // O compressor tem um lookahead fixo interno (ver
+            // VocalCompressorDSP) que atrasa o sinal em alguns samples -
+            // por isso o blend de Mix usa getLastDelayedInput() (o preL
+            // já atrasado do mesmo jeito) em vez do preL "cru", senão
+            // dry e wet ficam fora de alinhamento no tempo.
             float preL = preOn ? preEqL.processSample(left[i]) : left[i];
             float wetL = compressorL.processSample(preL);
-            float mixedL = preL * (1.0f - mix) + wetL * mix;
+            float mixedL = compressorL.getLastDelayedInput() * (1.0f - mix) + wetL * mix;
             left[i] = postOn ? postEqL.processSample(mixedL) : mixedL;
 
             if (right != nullptr)
             {
                 float preR = preOn ? preEqR.processSample(right[i]) : right[i];
                 float wetR = compressorR.processSample(preR);
-                float mixedR = preR * (1.0f - mix) + wetR * mix;
+                float mixedR = compressorR.getLastDelayedInput() * (1.0f - mix) + wetR * mix;
                 right[i] = postOn ? postEqR.processSample(mixedR) : mixedR;
             }
         }

@@ -1,6 +1,8 @@
 #pragma once
 #include <juce_core/juce_core.h>
 #include <cmath>
+#include <vector>
+#include "RatioLimiter.h"
 
 /**
     Compressor de voz com release adaptativo (program-dependent) e
@@ -8,6 +10,10 @@
     Detector pode passar por um high-pass (Filtro/HPF) pra não deixar
     graves/plosivas dispararem a compressão à toa. Uma instância por
     canal de áudio.
+
+    Ratio no extremo máximo (RatioLimiter::isLimiterMode) vira um modo
+    Limiter dedicado: hard-knee, threshold funciona como teto (ceiling) e
+    o detector usa lookahead pra reagir a transientes antes deles saírem.
 */
 class VocalCompressorDSP
 {
@@ -26,6 +32,20 @@ public:
         slowReleaseCoef  = calcCoef(400.0f);
         transientCoef    = calcCoef(30.0f);
         hpfCoef          = onePoleCoef(120.0f);
+
+        // Lookahead fixo, SEMPRE ativo (mesmo fora do modo Limiter) -
+        // isso é o que garante latência constante, que nunca muda girando
+        // o Ratio (só muda se a sample rate mudar, o que é normal/
+        // esperado). Nos ratios normais o detector continua analisando a
+        // mesma amostra que está sendo processada (ver processSample) -
+        // o único efeito é um atraso constante de ~lookaheadMs em tudo,
+        // sem mudar o caráter do compressor. No modo Limiter, o detector
+        // passa a "espiar" a amostra ainda não processada, adiantada em
+        // lookaheadSamples, pra reagir ANTES do pico sair.
+        lookaheadSamples = juce::jmax(1, (int) std::ceil(lookaheadMs * 0.001 * fs));
+        lookaheadBuffer.assign((size_t) lookaheadSamples, 0.0f);
+        lookaheadWriteIndex = 0;
+        lastDelayedInput = 0.0f;
     }
 
     void setParameters(float thresholdDbIn, float ratioIn, float attackMs,
@@ -34,6 +54,7 @@ public:
     {
         thresholdDb = thresholdDbIn;
         ratio = juce::jmax(1.0f, ratioIn);
+        isLimiterMode = RatioLimiter::isLimiterMode(ratio);
         attackCoef = calcCoef(juce::jmax(0.1f, attackMs));
         releaseBlend = juce::jlimit(0.0f, 1.0f, releaseCharacterPercent / 100.0f);
         driveAmount = juce::jmax(1.0f, driveIn);
@@ -43,17 +64,31 @@ public:
 
     float processSample(float input)
     {
-        float detectorSignal = detectorHpfOn ? highPassDetector(input) : input;
+        // Escreve a amostra atual e lê a amostra atrasada (delay fixo de
+        // lookaheadSamples) - é ESSA que realmente vira o áudio de saída.
+        float delayed = lookaheadBuffer[(size_t) lookaheadWriteIndex];
+        lookaheadBuffer[(size_t) lookaheadWriteIndex] = input;
+        lookaheadWriteIndex = (lookaheadWriteIndex + 1) % lookaheadSamples;
+        lastDelayedInput = delayed;
+
+        // Modo normal: detector vê a mesma amostra (delayed) que está
+        // sendo processada - comportamento idêntico ao de antes, só que
+        // tudo desliza ~lookaheadMs (imperceptível, não muda o caráter).
+        // Modo Limiter: detector vê "input" (adiantado em lookaheadSamples
+        // em relação a "delayed") - o ganho já começa a cair antes do
+        // pico real chegar na saída, evitando estouro no teto.
+        float detectorSample = isLimiterMode ? input : delayed;
+        float detectorSignal = detectorHpfOn ? highPassDetector(detectorSample) : detectorSample;
         float rectified = std::abs(detectorSignal);
 
         float releaseCoef = getAdaptiveRelease(rectified);
         float coef = (rectified > envelope) ? attackCoef : releaseCoef;
         envelope += (rectified - envelope) * coef;
 
-        float gainReductionDb = computeGainReduction(envelope, thresholdDb, ratio, kneeWidth);
+        float gainReductionDb = computeGainReduction(envelope, thresholdDb, ratio, kneeWidth, isLimiterMode);
         smoothedGainDb += (gainReductionDb - smoothedGainDb) * smoothingSpeed;
 
-        float compressedOut = input * dbToLinear(smoothedGainDb);
+        float compressedOut = delayed * dbToLinear(smoothedGainDb);
 
         // Saturação: normalização mais leve que na V1, então o Drive
         // realmente muda o caráter/volume percebido, não só a distorção.
@@ -61,11 +96,35 @@ public:
         float satNormalise = juce::jmax(0.35f, std::tanh(driveAmount));
         float output = driven / satNormalise;
 
-        return output * makeupGainLinear;
+        float finalOutput = output * makeupGainLinear;
+
+        // Proteção final do modo Limiter: teto absoluto baseado no
+        // threshold, aplicado DEPOIS de Drive e Makeup - garante que
+        // nenhum dos dois consiga furar o teto.
+        if (isLimiterMode)
+        {
+            float ceilingLinear = dbToLinear(thresholdDb);
+            finalOutput = juce::jlimit(-ceilingLinear, ceilingLinear, finalOutput);
+        }
+
+        return finalOutput;
     }
 
     // Usado pelo medidor de GR na GUI
     float getLastGainReductionDb() const { return smoothedGainDb; }
+
+    /** Amostra "seca" (sem compressão) mas já com o mesmo atraso de
+        lookahead aplicado ao sinal processado - usar essa (em vez do
+        preEQ cru) pra fazer o blend de Mix, senão dry e wet ficam fora de
+        alinhamento no tempo (o lookahead atrasa só o wet). */
+    float getLastDelayedInput() const { return lastDelayedInput; }
+
+    /** Latência fixa introduzida pelo lookahead, em samples - constante,
+        não muda girando o Ratio (só se a sample rate mudar). Reportar ao
+        host via AudioProcessor::setLatencySamples() no prepareToPlay. */
+    int getLookaheadSamples() const { return lookaheadSamples; }
+
+    bool isInLimiterMode() const { return isLimiterMode; }
 
 private:
     float calcCoef(float timeMs) const
@@ -96,9 +155,19 @@ private:
         return juce::jmap(finalBlend, slowReleaseCoef, fastReleaseCoef);
     }
 
-    static float computeGainReduction(float env, float thresholdDbIn, float ratioIn, float kneeWidthIn)
+    static float computeGainReduction(float env, float thresholdDbIn, float ratioIn,
+                                       float kneeWidthIn, bool limiterModeIn)
     {
         float envDb = linearToDb(env + 1.0e-6f);
+
+        if (limiterModeIn)
+        {
+            // Hard-knee: abaixo do threshold, nada; acima, corta exatamente
+            // no teto - sem o vazamento residual que um ratio finito (por
+            // maior que seja) sempre deixa passar.
+            return envDb <= thresholdDbIn ? 0.0f : (thresholdDbIn - envDb);
+        }
+
         float overshoot = envDb - thresholdDbIn;
 
         if (overshoot <= -kneeWidthIn * 0.5f)
@@ -127,6 +196,7 @@ private:
     float driveAmount = 1.5f;
     float makeupGainLinear = 1.0f;
     float releaseBlend = 0.5f;
+    bool isLimiterMode = false;
 
     // Detector high-pass (Filtro/HPF)
     bool detectorHpfOn = false;
@@ -135,4 +205,11 @@ private:
 
     // Suavização final do ganho antes de aplicar (evita zipper noise).
     static constexpr float smoothingSpeed = 0.35f;
+
+    // Lookahead fixo (ver comentário em prepare()/processSample()).
+    static constexpr float lookaheadMs = 2.0f;
+    std::vector<float> lookaheadBuffer;
+    int lookaheadSamples = 1;
+    int lookaheadWriteIndex = 0;
+    float lastDelayedInput = 0.0f;
 };
