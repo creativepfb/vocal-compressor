@@ -53,10 +53,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.NF_RELEASES_TOKEN }}
         run: |
+          cp "installer_output/VocalCompressor-Windows-Installer.exe" "vocal-compressor-windows-setup.exe"
           gh release view vocal-compressor --repo creativepfb/nf-releases >/dev/null 2>&1 || \
             gh release create vocal-compressor --repo creativepfb/nf-releases \
               --title "Vocal Compressor" \
               --notes "Instaladores publicados automaticamente pelo CI - sempre a versao mais recente."
           gh release upload vocal-compressor \
-            "installer_output/VocalCompressor-Windows-Installer.exe#vocal-compressor-windows-setup.exe" \
+            "vocal-compressor-windows-setup.exe" \
             --repo creativepfb/nf-releases --clobber

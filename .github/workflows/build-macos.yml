@@ -90,10 +90,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.NF_RELEASES_TOKEN }}
         run: |
+          cp "VocalCompressor-macOS.dmg" "vocal-compressor-macos.dmg"
           gh release view vocal-compressor --repo creativepfb/nf-releases >/dev/null 2>&1 || \
             gh release create vocal-compressor --repo creativepfb/nf-releases \
               --title "Vocal Compressor" \
               --notes "Instaladores publicados automaticamente pelo CI - sempre a versao mais recente."
           gh release upload vocal-compressor \
-            "VocalCompressor-macOS.dmg#vocal-compressor-macos.dmg" \
+            "vocal-compressor-macos.dmg" \
             --repo creativepfb/nf-releases --clobber
