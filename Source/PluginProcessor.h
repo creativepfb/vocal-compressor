@@ -15,6 +15,7 @@ struct EqStageParams
     std::atomic<float>* lowShelfOn    = nullptr;
     std::atomic<float>* lowShelfFreq  = nullptr;
     std::atomic<float>* lowShelfGain  = nullptr;
+    std::atomic<float>* lowShelfQ     = nullptr;
     std::atomic<float>* peakOn        = nullptr;
     std::atomic<float>* peakFreq      = nullptr;
     std::atomic<float>* peakGain      = nullptr;
@@ -22,6 +23,7 @@ struct EqStageParams
     std::atomic<float>* highShelfOn   = nullptr;
     std::atomic<float>* highShelfFreq = nullptr;
     std::atomic<float>* highShelfGain = nullptr;
+    std::atomic<float>* highShelfQ    = nullptr;
     std::atomic<float>* highCutOn     = nullptr;
     std::atomic<float>* highCutFreq   = nullptr;
 
@@ -33,6 +35,7 @@ struct EqStageParams
         lowShelfOn    = apvts.getRawParameterValue(prefix + "LowShelfOn");
         lowShelfFreq  = apvts.getRawParameterValue(prefix + "LowShelfFreq");
         lowShelfGain  = apvts.getRawParameterValue(prefix + "LowShelfGain");
+        lowShelfQ     = apvts.getRawParameterValue(prefix + "LowShelfQ");
         peakOn        = apvts.getRawParameterValue(prefix + "PeakOn");
         peakFreq      = apvts.getRawParameterValue(prefix + "PeakFreq");
         peakGain      = apvts.getRawParameterValue(prefix + "PeakGain");
@@ -40,6 +43,7 @@ struct EqStageParams
         highShelfOn   = apvts.getRawParameterValue(prefix + "HighShelfOn");
         highShelfFreq = apvts.getRawParameterValue(prefix + "HighShelfFreq");
         highShelfGain = apvts.getRawParameterValue(prefix + "HighShelfGain");
+        highShelfQ    = apvts.getRawParameterValue(prefix + "HighShelfQ");
         highCutOn     = apvts.getRawParameterValue(prefix + "HighCutOn");
         highCutFreq   = apvts.getRawParameterValue(prefix + "HighCutFreq");
     }
@@ -47,9 +51,9 @@ struct EqStageParams
     void applyTo(VoiceEQ& eq) const
     {
         eq.setParameters(lowCutOn->load() > 0.5f, lowCutFreq->load(),
-                          lowShelfOn->load() > 0.5f, lowShelfFreq->load(), lowShelfGain->load(),
+                          lowShelfOn->load() > 0.5f, lowShelfFreq->load(), lowShelfGain->load(), lowShelfQ->load(),
                           peakOn->load() > 0.5f, peakFreq->load(), peakGain->load(), peakQ->load(),
-                          highShelfOn->load() > 0.5f, highShelfFreq->load(), highShelfGain->load(),
+                          highShelfOn->load() > 0.5f, highShelfFreq->load(), highShelfGain->load(), highShelfQ->load(),
                           highCutOn->load() > 0.5f, highCutFreq->load());
     }
 };
@@ -104,8 +108,8 @@ public:
     std::array<std::atomic<float>, waveformBufferSize> waveformBuffer;
     std::atomic<int> waveformWriteIndex { 0 };
 
-    // Espectro do sinal FINAL (pós Pre EQ + compressor + Post EQ, imediatamente
-    // antes do output) pro RTA de fundo na GUI.
+    // Espectro do sinal FINAL (pós Pre EQ + compressor, imediatamente antes
+    // do output) pro RTA de fundo na GUI.
     SpectrumAnalyzer spectrumAnalyzer;
     double getCurrentSampleRateForGui() const { return currentSampleRate; }
 
@@ -117,8 +121,8 @@ public:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
-    VoiceEQ preEqL, preEqR, postEqL, postEqR;
-    EqStageParams preEqParams, postEqParams;
+    VoiceEQ preEqL, preEqR;
+    EqStageParams preEqParams;
     VocalCompressorDSP compressorL, compressorR;
     double currentSampleRate = 44100.0;
 

@@ -121,24 +121,21 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     bypassButton.setPulseTextWhenOn(true); // texto pulsa branco<->vermelho devagar quando ON
     content.addAndMakeVisible(bypassButton);
 
-    // PRE EQ / POST EQ / HPF: cada clique liga/desliga o próprio estágio
-    // (feito pelo ButtonAttachment abaixo) E seleciona esse filtro pro
-    // gráfico - independentes entre si, não é radio group de ON/OFF (os
-    // três podem ficar ON ao mesmo tempo, só um fica SELECTED por vez,
-    // marcado com o aro fino no botão + rótulo no gráfico).
+    // PRE EQ / HPF: cada clique liga/desliga o próprio estágio (feito pelo
+    // ButtonAttachment abaixo) E seleciona esse filtro pro gráfico -
+    // independentes entre si, não é radio group de ON/OFF (os dois podem
+    // ficar ON ao mesmo tempo, só um fica SELECTED por vez, marcado com o
+    // aro fino no botão + rótulo no gráfico).
     auto selectFilter = [this](EQGraphComponent::SelectedFilter f)
     {
         eqGraph.setSelectedFilter(f);
         preOnButton.setSelectedForEditing(f == EQGraphComponent::SelectedFilter::Pre);
-        postOnButton.setSelectedForEditing(f == EQGraphComponent::SelectedFilter::Post);
         hpfButton.setSelectedForEditing(f == EQGraphComponent::SelectedFilter::Hpf);
     };
     preOnButton.onClick  = [this, selectFilter] { selectFilter(EQGraphComponent::SelectedFilter::Pre); };
-    postOnButton.onClick = [this, selectFilter] { selectFilter(EQGraphComponent::SelectedFilter::Post); };
     hpfButton.onClick    = [this, selectFilter] { selectFilter(EQGraphComponent::SelectedFilter::Hpf); };
     preOnButton.setSelectedForEditing(true); // EQGraphComponent começa mostrando o PRE
     content.addAndMakeVisible(preOnButton);
-    content.addAndMakeVisible(postOnButton);
     content.addAndMakeVisible(hpfButton);
 
     content.addAndMakeVisible(rtaDisplay);
@@ -155,7 +152,6 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     hpfAttach       = std::make_unique<ButtonAttachment>(apvts, "hpf", hpfButton);
     bypassAttach    = std::make_unique<ButtonAttachment>(apvts, "bypass", bypassButton);
     preOnAttach     = std::make_unique<ButtonAttachment>(apvts, "preEnabled", preOnButton);
-    postOnAttach    = std::make_unique<ButtonAttachment>(apvts, "postEnabled", postOnButton);
 
     for (int i = 0; i < numKnobs; ++i)
         updateValueLabel(i);
@@ -266,9 +262,9 @@ void VocalCompressorAudioProcessorEditor::resized()
 
     grMeter.setBounds(fracRect(w, h, grMeterX0, grMeterY0, grMeterX1, grMeterY1));
 
-    // 3 botões compactos dentro da caixa FILTER única, ~20% menores que o
-    // "slot" disponível de cada linha (com margens e vãos), centralizados
-    // dentro dele - PRE EQ / POST EQ / HPF.
+    // 2 botões compactos dentro da caixa FILTER única, ~20% menores que o
+    // "slot" disponível de cada linha (com margens e vão), centralizados
+    // dentro dele - PRE EQ / HPF.
     {
         auto filterBox = fracRect(w, h, filterX0, filterY0, filterX1, filterY1);
         constexpr int sideMargin = 14;
@@ -277,7 +273,7 @@ void VocalCompressorAudioProcessorEditor::resized()
         constexpr float shrink = 0.8f; // ~20% menor que o slot
 
         int slotW = filterBox.getWidth() - sideMargin * 2;
-        int slotH = (filterBox.getHeight() - verticalMargin * 2 - gap * 2) / 3;
+        int slotH = (filterBox.getHeight() - verticalMargin * 2 - gap) / 2;
 
         int buttonWidth = juce::roundToInt((float) slotW * shrink);
         int buttonHeight = juce::roundToInt((float) slotH * shrink);
@@ -286,11 +282,9 @@ void VocalCompressorAudioProcessorEditor::resized()
 
         int row0Y = filterBox.getY() + verticalMargin + rowExtraY;
         int row1Y = filterBox.getY() + verticalMargin + slotH + gap + rowExtraY;
-        int row2Y = filterBox.getY() + verticalMargin + (slotH + gap) * 2 + rowExtraY;
 
         preOnButton.setBounds(buttonX, row0Y, buttonWidth, buttonHeight);
-        postOnButton.setBounds(buttonX, row1Y, buttonWidth, buttonHeight);
-        hpfButton.setBounds(buttonX, row2Y, buttonWidth, buttonHeight);
+        hpfButton.setBounds(buttonX, row1Y, buttonWidth, buttonHeight);
     }
 
     // Botão físico de BYPASS - sozinho na área lisa do topo.

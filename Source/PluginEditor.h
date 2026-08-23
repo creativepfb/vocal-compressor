@@ -60,13 +60,13 @@ private:
     DbReadout inputReadout, outputReadout;
 
     // Botões físicos compactos (corpo sempre preto/grafite, LED circular
-    // à esquerda que acende quando ON) - ver UI/HardwareButton.h. Três
-    // dentro da caixa FILTER: PRE EQ, POST EQ e HPF - cada clique liga/
-    // desliga o próprio estágio (parâmetro real, via attachment) E
-    // seleciona esse filtro pro gráfico (não são radio buttons - podem
-    // estar os três ON ao mesmo tempo, só um fica SELECTED por vez).
+    // à esquerda que acende quando ON) - ver UI/HardwareButton.h. Dois
+    // dentro da caixa FILTER: PRE EQ e HPF - cada clique liga/desliga o
+    // próprio estágio (parâmetro real, via attachment) E seleciona esse
+    // filtro pro gráfico (não são radio buttons - podem estar os dois ON
+    // ao mesmo tempo, só um fica SELECTED por vez).
     HardwareButton hpfButton { "HPF" };
-    HardwareButton preOnButton { "PRE EQ" }, postOnButton { "POST EQ" };
+    HardwareButton preOnButton { "PRE EQ" };
 
     // BYPASS: no faceplate-5.png essa região do topo ficou lisa (sem caixa
     // preta nem texto impresso) - agora é SÓ este botão, com "BYPASS"
@@ -86,7 +86,7 @@ private:
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     std::unique_ptr<SliderAttachment> thresholdAttach, ratioAttach, attackAttach,
                                        releaseAttach, driveAttach, makeupAttach, mixAttach;
-    std::unique_ptr<ButtonAttachment> hpfAttach, bypassAttach, preOnAttach, postOnAttach;
+    std::unique_ptr<ButtonAttachment> hpfAttach, bypassAttach, preOnAttach;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocalCompressorAudioProcessorEditor)
 };

@@ -36,6 +36,10 @@ namespace
             prefix + "LowShelfGain", displayPrefix + " Low Shelf Gain",
             juce::NormalisableRange<float>(-15.0f, 15.0f, 0.1f), 0.0f, "dB"));
 
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            prefix + "LowShelfQ", displayPrefix + " Low Shelf Q",
+            juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f, 0.4f), 0.7f));
+
         params.push_back(std::make_unique<juce::AudioParameterBool>(
             prefix + "PeakOn", displayPrefix + " Peak On", true));
 
@@ -61,6 +65,10 @@ namespace
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             prefix + "HighShelfGain", displayPrefix + " High Shelf Gain",
             juce::NormalisableRange<float>(-15.0f, 15.0f, 0.1f), 0.0f, "dB"));
+
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            prefix + "HighShelfQ", displayPrefix + " High Shelf Q",
+            juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f, 0.4f), 0.7f));
 
         params.push_back(std::make_unique<juce::AudioParameterBool>(
             prefix + "HighCutOn", displayPrefix + " High Cut On", false));
@@ -88,7 +96,6 @@ VocalCompressorAudioProcessor::VocalCompressorAudioProcessor()
     bypassParam    = apvts.getRawParameterValue("bypass");
 
     preEqParams.resolve(apvts, "pre");
-    postEqParams.resolve(apvts, "post");
 
     for (auto& v : waveformBuffer)
         v.store(0.0f);
@@ -133,10 +140,8 @@ VocalCompressorAudioProcessor::createParameterLayout()
     params.push_back(std::make_unique<juce::AudioParameterBool>(
         "bypass", "Bypass", false));
 
-    // --- Dois EQs parametricos independentes: Pre (antes do compressor) e
-    // Post (depois do compressor, antes do RTA/output) ---
+    // --- EQ parametrico, antes do compressor ---
     addEqStageParameters(params, "pre", "Pre");
-    addEqStageParameters(params, "post", "Post");
 
     return { params.begin(), params.end() };
 }
@@ -155,8 +160,6 @@ void VocalCompressorAudioProcessor::prepareToPlay(double sampleRate, int samples
     juce::dsp::ProcessSpec spec { sampleRate, (juce::uint32) samplesPerBlock, 1 };
     preEqL.prepare(spec);
     preEqR.prepare(spec);
-    postEqL.prepare(spec);
-    postEqR.prepare(spec);
 }
 
 bool VocalCompressorAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -178,11 +181,8 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
                                releaseParam->load(), driveParam->load(), makeupParam->load(), hpfOn);
 
     bool preOn = preEqParams.enabled->load() > 0.5f;
-    bool postOn = postEqParams.enabled->load() > 0.5f;
     preEqParams.applyTo(preEqL);
     preEqParams.applyTo(preEqR);
-    postEqParams.applyTo(postEqL);
-    postEqParams.applyTo(postEqR);
 
     float inPeak = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
@@ -195,10 +195,10 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     float mix = mixParam->load() / 100.0f;
 
     // Modo Limiter (Ratio no extremo, ver DSP/RatioLimiter.h): teto final
-    // FIXO em -0.5dBFS, aplicado depois de TUDO (inclusive Post EQ) - não
-    // é o mesmo teto interno do compressor (esse cuida só de Drive/Makeup
-    // dentro do próprio estágio de compressão). L e R sempre têm o mesmo
-    // ratio (parâmetro único), então checar só compressorL já basta.
+    // FIXO em -0.5dBFS, aplicado depois de TUDO - não é o mesmo teto interno
+    // do compressor (esse cuida só de Drive/Makeup dentro do próprio estágio
+    // de compressão). L e R sempre têm o mesmo ratio (parâmetro único),
+    // então checar só compressorL já basta.
     bool limiterCeilingActive = compressorL.isInLimiterMode();
     const float finalCeilingLinear = juce::Decibels::decibelsToGain(-0.5f);
 
@@ -206,7 +206,7 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     {
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
-            // INPUT -> PRE EQ -> COMPRESSOR -> MIX -> POST EQ -> TETO FINAL (só no modo Limiter) -> OUTPUT
+            // INPUT -> PRE EQ -> COMPRESSOR -> MIX -> TETO FINAL (só no modo Limiter) -> OUTPUT
             // O compressor tem um lookahead fixo interno (ver
             // VocalCompressorDSP) que atrasa o sinal em alguns samples -
             // por isso o blend de Mix usa getLastDelayedInput() (o preL
@@ -215,16 +215,14 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
             float preL = preOn ? preEqL.processSample(left[i]) : left[i];
             float wetL = compressorL.processSample(preL);
             float mixedL = compressorL.getLastDelayedInput() * (1.0f - mix) + wetL * mix;
-            float postL = postOn ? postEqL.processSample(mixedL) : mixedL;
-            left[i] = limiterCeilingActive ? juce::jlimit(-finalCeilingLinear, finalCeilingLinear, postL) : postL;
+            left[i] = limiterCeilingActive ? juce::jlimit(-finalCeilingLinear, finalCeilingLinear, mixedL) : mixedL;
 
             if (right != nullptr)
             {
                 float preR = preOn ? preEqR.processSample(right[i]) : right[i];
                 float wetR = compressorR.processSample(preR);
                 float mixedR = compressorR.getLastDelayedInput() * (1.0f - mix) + wetR * mix;
-                float postR = postOn ? postEqR.processSample(mixedR) : mixedR;
-                right[i] = limiterCeilingActive ? juce::jlimit(-finalCeilingLinear, finalCeilingLinear, postR) : postR;
+                right[i] = limiterCeilingActive ? juce::jlimit(-finalCeilingLinear, finalCeilingLinear, mixedR) : mixedR;
             }
         }
 
@@ -237,8 +235,8 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         currentGainReductionDb.store(0.0f);
     }
 
-    // RTA analisa o sinal FINAL (pós Pre EQ + compressor + Post EQ), o
-    // mesmo que vai pro output - não mais o sinal de entrada bruto.
+    // RTA analisa o sinal FINAL (pós Pre EQ + compressor), o mesmo que vai
+    // pro output - não mais o sinal de entrada bruto.
     spectrumAnalyzer.pushSamples(left, buffer.getNumSamples());
 
     float outPeak = 0.0f;

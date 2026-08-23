@@ -6,33 +6,34 @@
 
 /**
     EQ paramétrico gráfico: fica por CIMA do RTA (componente separado, não
-    mexe nele). Mostra e edita SOMENTE o EQ atualmente selecionado (Pre ou
-    Post) - troca de seleção só muda o que aparece no gráfico, não afeta o
-    outro EQ nem o RTA (que sempre mostra o sinal final da cadeia).
+    mexe nele). Mostra e edita o único EQ que existe (Pre, antes do
+    compressor) ou o HPF do detector, dependendo do botão selecionado.
 
     Desenha a curva REAL (mesmos coeficientes IIR usados no áudio) e 5 nós
-    arrastáveis: Low Cut - Low Shelf - Peak/Bell (freq+gain+Q via scroll) -
-    High Shelf - High Cut.
+    arrastáveis: Low Cut - Peak - Peak - Peak - High Cut (as 3 bandas do
+    meio ainda usam os nomes internos lowShelf/peak/highShelf, mas as três
+    são filtros Peaking de verdade, com Q ajustável via scroll).
 */
 class EQGraphComponent : public juce::Component, private juce::Timer
 {
 public:
     /** ON/OFF (parâmetro de áudio real, por botão) e "qual filtro está
-        selecionado pro gráfico" são estados separados de propósito - dois
-        filtros podem estar ON ao mesmo tempo, mas só um fica selecionado. */
-    enum class SelectedFilter { Pre, Post, Hpf };
+        selecionado pro gráfico" são estados separados de propósito - o
+        EQ e o HPF podem estar ON ao mesmo tempo, mas só um fica
+        selecionado (mostrado/editável) no gráfico por vez. */
+    enum class SelectedFilter { Pre, Hpf };
 
     EQGraphComponent(juce::AudioProcessorValueTreeState& stateIn, double sampleRateIn)
         : apvts(stateIn), sampleRate(sampleRateIn > 0.0 ? sampleRateIn : 44100.0)
     {
         // onBase de cada nó = parâmetro de bypass INDIVIDUAL daquela banda
         // (duplo clique na bolinha liga/desliga - ver mouseDoubleClick).
-        // Não confundir com o "Enabled" do estágio inteiro (preOnButton/
-        // postOnButton) nem entre si - cada banda é independente.
+        // Não confundir com o "Enabled" do estágio inteiro (preOnButton)
+        // nem entre si - cada banda é independente.
         nodes.push_back({ "LowCutFreq", "", "", "LowCutOn", false, false, juce::Colour(0xffff5b5b) });
-        nodes.push_back({ "LowShelfFreq", "LowShelfGain", "", "LowShelfOn", true, false, juce::Colour(0xffffd23f) });
+        nodes.push_back({ "LowShelfFreq", "LowShelfGain", "LowShelfQ", "LowShelfOn", true, true, juce::Colour(0xffffd23f) });
         nodes.push_back({ "PeakFreq", "PeakGain", "PeakQ", "PeakOn", true, true, NFLookAndFeel::kKnobGreen });
-        nodes.push_back({ "HighShelfFreq", "HighShelfGain", "", "HighShelfOn", true, false, juce::Colour(0xff6ec6ff) });
+        nodes.push_back({ "HighShelfFreq", "HighShelfGain", "HighShelfQ", "HighShelfOn", true, true, juce::Colour(0xff6ec6ff) });
         nodes.push_back({ "HighCutFreq", "", "", "HighCutOn", false, false, juce::Colour(0xffff5b5b) });
 
         resetButton.setMomentary(true);
@@ -46,9 +47,9 @@ public:
         startTimerHz(30);
     }
 
-    /** Troca qual filtro (Pre EQ, Post EQ ou HPF) é mostrado/editado no
-        gráfico. Não afeta o processamento de áudio nem os outros filtros -
-        é só estado da GUI. */
+    /** Troca qual filtro (Pre EQ ou HPF) é mostrado/editado no gráfico. Não
+        afeta o processamento de áudio nem os outros filtros - é só estado
+        da GUI. */
     void setSelectedFilter(SelectedFilter f)
     {
         selected = f;
@@ -175,7 +176,7 @@ private:
     static constexpr float minDb = -15.0f;
     static constexpr float maxDb = 15.0f;
 
-    juce::String prefix() const { return selected == SelectedFilter::Pre ? "pre" : "post"; }
+    juce::String prefix() const { return "pre"; }
     juce::String fullId(const juce::String& base) const { return prefix() + base; }
 
     float freqToX(float freq, juce::Rectangle<float> area) const
@@ -254,8 +255,9 @@ private:
                        ->getMagnitudeForFrequency((double) freq, sampleRate);
 
         if (getReal("LowShelfOn") > 0.5f)
-            mag *= juce::dsp::IIR::Coefficients<float>::makeLowShelf(sampleRate, juce::jmax(20.0f, getReal("LowShelfFreq")), 0.707f,
-                       juce::Decibels::decibelsToGain(getReal("LowShelfGain")))->getMagnitudeForFrequency((double) freq, sampleRate);
+            mag *= juce::dsp::IIR::Coefficients<float>::makePeakFilter(sampleRate, juce::jmax(20.0f, getReal("LowShelfFreq")),
+                       juce::jmax(0.1f, getReal("LowShelfQ")), juce::Decibels::decibelsToGain(getReal("LowShelfGain")))
+                       ->getMagnitudeForFrequency((double) freq, sampleRate);
 
         if (getReal("PeakOn") > 0.5f)
             mag *= juce::dsp::IIR::Coefficients<float>::makePeakFilter(sampleRate, juce::jmax(20.0f, getReal("PeakFreq")),
@@ -263,8 +265,9 @@ private:
                        ->getMagnitudeForFrequency((double) freq, sampleRate);
 
         if (getReal("HighShelfOn") > 0.5f)
-            mag *= juce::dsp::IIR::Coefficients<float>::makeHighShelf(sampleRate, juce::jmax(20.0f, getReal("HighShelfFreq")), 0.707f,
-                       juce::Decibels::decibelsToGain(getReal("HighShelfGain")))->getMagnitudeForFrequency((double) freq, sampleRate);
+            mag *= juce::dsp::IIR::Coefficients<float>::makePeakFilter(sampleRate, juce::jmax(20.0f, getReal("HighShelfFreq")),
+                       juce::jmax(0.1f, getReal("HighShelfQ")), juce::Decibels::decibelsToGain(getReal("HighShelfGain")))
+                       ->getMagnitudeForFrequency((double) freq, sampleRate);
 
         if (getReal("HighCutOn") > 0.5f)
             mag *= juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, juce::jmax(200.0f, getReal("HighCutFreq")))
@@ -307,9 +310,8 @@ private:
                 curve.lineTo(x, y);
         }
 
-        auto curveColour = selected == SelectedFilter::Pre    ? juce::Colour(0xffff9a3c)
-                          : selected == SelectedFilter::Post   ? NFLookAndFeel::kPurple
-                                                                : juce::Colour(0xffff5b5b);
+        auto curveColour = selected == SelectedFilter::Pre ? juce::Colour(0xffff9a3c)
+                                                             : juce::Colour(0xffff5b5b);
         g.setColour(curveColour.withAlpha(0.35f));
         g.strokePath(curve, juce::PathStrokeType(4.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         g.setColour(curveColour);
@@ -371,18 +373,15 @@ private:
         return juce::String((int) freq) + " Hz";
     }
 
-    /** Rótulo PRE EQ / POST EQ, sempre no canto superior esquerdo (ao lado
+    /** Rótulo PRE EQ / HPF, sempre no canto superior esquerdo (ao lado
         do botão físico RESET, que é um componente filho de verdade -
-        ver resetButton/resized()), indicando qual EQ está sendo
+        ver resetButton/resized()), indicando qual filtro está sendo
         mostrado/editado agora. */
     void drawHeader(juce::Graphics& g, juce::Rectangle<float> /*area*/)
     {
-        auto curveColour = selected == SelectedFilter::Pre    ? juce::Colour(0xffff9a3c)
-                          : selected == SelectedFilter::Post   ? NFLookAndFeel::kPurple
-                                                                : juce::Colour(0xffff5b5b);
-        juce::String label = selected == SelectedFilter::Pre  ? "PRE EQ"
-                            : selected == SelectedFilter::Post ? "POST EQ"
-                                                                : "HPF";
+        auto curveColour = selected == SelectedFilter::Pre ? juce::Colour(0xffff9a3c)
+                                                             : juce::Colour(0xffff5b5b);
+        juce::String label = selected == SelectedFilter::Pre ? "PRE EQ" : "HPF";
         auto labelBounds = juce::Rectangle<float>(resetButton.getRight() + 6.0f, (float) resetButton.getY(),
                                                     70.0f, (float) resetButton.getHeight());
         g.setColour(curveColour);
@@ -405,9 +404,9 @@ private:
 
         static const char* bases[] = {
             "LowCutOn", "LowCutFreq",
-            "LowShelfOn", "LowShelfFreq", "LowShelfGain",
+            "LowShelfOn", "LowShelfFreq", "LowShelfGain", "LowShelfQ",
             "PeakOn", "PeakFreq", "PeakGain", "PeakQ",
-            "HighShelfOn", "HighShelfFreq", "HighShelfGain",
+            "HighShelfOn", "HighShelfFreq", "HighShelfGain", "HighShelfQ",
             "HighCutOn", "HighCutFreq"
         };
 
