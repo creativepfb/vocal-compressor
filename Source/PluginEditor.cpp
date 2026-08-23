@@ -160,8 +160,9 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     for (int i = 0; i < numKnobs; ++i)
         updateValueLabel(i);
 
-    // NF License System: overlay cobre a janela toda até ativar. Some
-    // sozinho quando a ativação der certo (audioProcessor.licenseManager
+    // NF License System: barra fina no topo até ativar (plugin inteiro
+    // continua visível por baixo - o bloqueio de verdade é no áudio). Some
+    // sozinha quando a ativação der certo (audioProcessor.licenseManager
     // já embutido dentro do próprio componente).
     addChildComponent(licenseOverlay);
     licenseOverlay.setVisible(! audioProcessor.licenseManager.isActivated());
@@ -295,7 +296,8 @@ void VocalCompressorAudioProcessorEditor::resized()
     rtaDisplay.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
     eqGraph.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
 
-    // Overlay de licença cobre a JANELA inteira (não a "content" nativa) -
-    // fica direto num filho do editor, fora do transform de escala.
-    licenseOverlay.setBounds(getLocalBounds());
+    // Barra de licença: só uma faixa fina no topo da JANELA (não a
+    // "content" nativa) - fica direto num filho do editor, fora do
+    // transform de escala, e deixa o resto do plugin visível por baixo.
+    licenseOverlay.setBounds(getLocalBounds().removeFromTop(36));
 }

@@ -2,17 +2,20 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "NFLicenseManager.h"
 
-/** Tela simples de ativação - campo de texto pra chave + botão + status.
-    Fica por cima de tudo (overlay) enquanto o produto não estiver
-    ativado; some sozinha quando a ativação der certo. */
+/** Barra de ativação - fica só numa faixa fina no topo da janela, com o
+    plugin inteiro visível por baixo (modo "demo": a pessoa vê e mexe na
+    interface antes de comprar; o bloqueio de verdade acontece no áudio,
+    não na UI). Campo de chave + botão + status, tudo numa linha. Some
+    sozinha quando a ativação der certo. */
 class LicenseActivationComponent : public juce::Component
 {
 public:
     explicit LicenseActivationComponent (NFLicenseManager& managerIn) : manager (managerIn)
     {
-        titleLabel.setText ("Ative sua licenca", juce::dontSendNotification);
-        titleLabel.setJustificationType (juce::Justification::centred);
-        titleLabel.setFont (juce::Font (juce::FontOptions (18.0f, juce::Font::bold)));
+        titleLabel.setText ("Licenca nao ativada:", juce::dontSendNotification);
+        titleLabel.setJustificationType (juce::Justification::centredLeft);
+        titleLabel.setFont (juce::Font (juce::FontOptions (14.0f, juce::Font::bold)));
+        titleLabel.setColour (juce::Label::textColourId, juce::Colours::white);
         addAndMakeVisible (titleLabel);
 
         keyEditor.setTextToShowWhenEmpty ("NFVC-XXXXX-XXXXX-XXXXX", juce::Colours::grey);
@@ -23,28 +26,28 @@ public:
         activateButton.onClick = [this] { attemptActivation(); };
         addAndMakeVisible (activateButton);
 
-        statusLabel.setJustificationType (juce::Justification::centred);
-        statusLabel.setFont (juce::Font (juce::FontOptions (13.0f)));
+        statusLabel.setJustificationType (juce::Justification::centredLeft);
+        statusLabel.setFont (juce::Font (juce::FontOptions (12.0f)));
         addAndMakeVisible (statusLabel);
-
-        setOpaque (true);
     }
 
     void paint (juce::Graphics& g) override
     {
-        g.fillAll (juce::Colour (0xee0b0b0d));
+        g.fillAll (juce::Colour (0xe0141416));
+        g.setColour (juce::Colour (0xff7c3aed));
+        g.fillRect (getLocalBounds().removeFromBottom (2));
     }
 
     void resized() override
     {
-        auto area = getLocalBounds().reduced (30).withSizeKeepingCentre (320, 160);
-        titleLabel.setBounds (area.removeFromTop (30));
-        area.removeFromTop (10);
-        keyEditor.setBounds (area.removeFromTop (30));
-        area.removeFromTop (10);
-        activateButton.setBounds (area.removeFromTop (30));
-        area.removeFromTop (10);
-        statusLabel.setBounds (area.removeFromTop (30));
+        auto area = getLocalBounds().reduced (10, 6);
+        titleLabel.setBounds (area.removeFromLeft (140));
+        area.removeFromLeft (10);
+        activateButton.setBounds (area.removeFromRight (140));
+        area.removeFromRight (10);
+        keyEditor.setBounds (area.removeFromLeft (220));
+        area.removeFromLeft (14);
+        statusLabel.setBounds (area);
     }
 
 private:
