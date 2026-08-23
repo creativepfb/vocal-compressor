@@ -91,7 +91,8 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
       inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb),
       inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb),
       rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
-      eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0)
+      eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
+      licenseOverlay(p.licenseManager)
 {
     content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate6_png, BinaryData::faceplate6_pngSize);
     nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::botaopng126px_png, BinaryData::botaopng126px_pngSize);
@@ -158,6 +159,13 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
 
     for (int i = 0; i < numKnobs; ++i)
         updateValueLabel(i);
+
+    // NF License System: overlay cobre a janela toda até ativar. Some
+    // sozinho quando a ativação der certo (audioProcessor.licenseManager
+    // já embutido dentro do próprio componente).
+    addChildComponent(licenseOverlay);
+    licenseOverlay.setVisible(! audioProcessor.licenseManager.isActivated());
+    licenseOverlay.onActivated = [this] { licenseOverlay.setVisible(false); };
 
     // Janela redimensionável, proporção travada na da faceplate.
     constrainer.setFixedAspectRatio((double) nativeW / (double) nativeH);
@@ -286,4 +294,8 @@ void VocalCompressorAudioProcessorEditor::resized()
 
     rtaDisplay.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
     eqGraph.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
+
+    // Overlay de licença cobre a JANELA inteira (não a "content" nativa) -
+    // fica direto num filho do editor, fora do transform de escala.
+    licenseOverlay.setBounds(getLocalBounds());
 }

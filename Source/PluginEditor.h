@@ -9,6 +9,7 @@
 #include "UI/ValueReadout.h"
 #include "UI/HardwareButton.h"
 #include "UI/EQGraphComponent.h"
+#include "License/LicenseActivationComponent.h"
 
 /** Segura a faceplate + todos os controles, sempre no tamanho nativo da
     imagem (1525x920). A janela em si pode ser redimensionada livremente -
@@ -75,6 +76,11 @@ private:
 
     RTADisplay rtaDisplay;
     EQGraphComponent eqGraph;
+
+    // NF License System - overlay que cobre a GUI toda enquanto o
+    // produto não estiver ativado (o áudio já fica mudo no processor
+    // independente disso; aqui é só a interface de ativação).
+    LicenseActivationComponent licenseOverlay;
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;

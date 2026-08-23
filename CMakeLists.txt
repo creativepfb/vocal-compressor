@@ -50,6 +50,8 @@ target_link_libraries(VocalCompressor
     PRIVATE
         juce::juce_audio_utils
         juce::juce_dsp
+        juce::juce_cryptography
+        juce::juce_events
         VocalCompressorAssets
     PUBLIC
         juce::juce_recommended_config_flags

@@ -253,6 +253,13 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     int writeIdx = waveformWriteIndex.load();
     waveformBuffer[(size_t) writeIdx].store(waveformFraction);
     waveformWriteIndex.store((writeIdx + 1) % waveformBufferSize);
+
+    // NF License System: sem licença ativada, o plugin continua rodando
+    // de verdade por dentro (RTA, medidores, GUI - dá pra ver ele
+    // funcionando), só o ÁUDIO final fica mudo. Fica depois de tudo de
+    // propósito, não muda nenhum outro comportamento/processamento.
+    if (! licenseManager.isActivated())
+        buffer.clear();
 }
 
 juce::AudioProcessorEditor* VocalCompressorAudioProcessor::createEditor()

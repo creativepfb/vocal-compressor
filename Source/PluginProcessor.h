@@ -3,6 +3,7 @@
 #include "DSP/VocalCompressorDSP.h"
 #include "DSP/VoiceEQ.h"
 #include "DSP/SpectrumAnalyzer.h"
+#include "License/NFLicenseManager.h"
 
 /** Ponteiros pros parâmetros de UM estágio de EQ completo (Pre ou Post) -
     evita duplicar 12 campos nomeados x2 no processor. */
@@ -107,6 +108,11 @@ public:
     // antes do output) pro RTA de fundo na GUI.
     SpectrumAnalyzer spectrumAnalyzer;
     double getCurrentSampleRateForGui() const { return currentSampleRate; }
+
+    // NF License System - enquanto não ativado, o áudio fica mudo (ver
+    // processBlock). RTA/EQ/GUI continuam funcionando normalmente pra dar
+    // pra ver o plugin funcionando antes de ativar, só o som fica cortado.
+    NFLicenseManager licenseManager { "NF_VOCAL_COMPRESSOR" };
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
