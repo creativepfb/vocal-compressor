@@ -70,7 +70,37 @@ jobs:
 
           mkdir -p dmg_root
           cp "Vocal Compressor Installer.pkg" dmg_root/
+
+          # Ícone da marca NF Plugins no volume do DMG (o que aparece quando
+          # a pessoa monta o .dmg) e no próprio arquivo .dmg (o que aparece
+          # no Finder/Downloads antes de montar). Tolerante a falha - se
+          # alguma ferramenta não existir no runner, o build continua sem
+          # ícone custom em vez de quebrar.
+          mkdir -p icon.iconset
+          sips -z 16 16     installer/macos/nf-plugins-icon-512.png --out icon.iconset/icon_16x16.png
+          sips -z 32 32     installer/macos/nf-plugins-icon-512.png --out icon.iconset/icon_16x16@2x.png
+          sips -z 32 32     installer/macos/nf-plugins-icon-512.png --out icon.iconset/icon_32x32.png
+          sips -z 64 64     installer/macos/nf-plugins-icon-512.png --out icon.iconset/icon_32x32@2x.png
+          sips -z 128 128   installer/macos/nf-plugins-icon-512.png --out icon.iconset/icon_128x128.png
+          sips -z 256 256   installer/macos/nf-plugins-icon-512.png --out icon.iconset/icon_128x128@2x.png
+          sips -z 256 256   installer/macos/nf-plugins-icon-512.png --out icon.iconset/icon_256x256.png
+          sips -z 512 512   installer/macos/nf-plugins-icon-512.png --out icon.iconset/icon_256x256@2x.png
+          sips -z 512 512   installer/macos/nf-plugins-icon-512.png --out icon.iconset/icon_512x512.png
+          iconutil -c icns icon.iconset -o icon.icns || true
+
+          if [ -f icon.icns ]; then
+            cp icon.icns dmg_root/.VolumeIcon.icns
+            SetFile -a C dmg_root || true
+            SetFile -c icnC dmg_root/.VolumeIcon.icns || true
+          fi
+
           hdiutil create -volname "Vocal Compressor" -srcfolder dmg_root -ov -format UDZO VocalCompressor-macOS.dmg
+
+          if [ -f icon.icns ]; then
+            DeRez -only icns icon.icns > icon.rsrc || true
+            Rez -append icon.rsrc -o VocalCompressor-macOS.dmg || true
+            SetFile -a C VocalCompressor-macOS.dmg || true
+          fi
 
       - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4

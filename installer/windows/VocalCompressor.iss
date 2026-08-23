@@ -31,6 +31,9 @@ PrivilegesRequired=admin
 WizardStyle=modern
 UninstallDisplayIcon={app}\{#MyAppExeName}
 DisableWelcomePage=no
+; Ícone do próprio arquivo .exe do instalador (o que aparece quando a
+; pessoa baixa pelo navegador) - logo da marca NF Plugins.
+SetupIconFile=icon\nf-plugins.ico
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
