@@ -6,7 +6,7 @@
 
 #define MyAppName "Vocal Compressor"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "NF"
+#define MyAppPublisher "NF Plugins"
 #define MyAppExeName "Vocal Compressor.exe"
 
 [Setup]
@@ -16,8 +16,10 @@ AppId={{8F1B7C2E-4A3D-4E9B-9C2F-6D5A1B0E7F44}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
+; Agrupado sob "NF Plugins" (igual iZotope/FabFilter fazem com a marca
+; deles) - todo plugin novo da linha usa o mesmo padrão de pasta.
+DefaultDirName={autopf}\NF Plugins\{#MyAppName}
+DefaultGroupName=NF Plugins\{#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=..\..\installer_output
 OutputBaseFilename=VocalCompressor-Windows-Installer
