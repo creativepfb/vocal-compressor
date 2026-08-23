@@ -16,9 +16,7 @@
 class NFLicenseManager
 {
 public:
-    // TODO: preencher com a URL real depois do deploy do nf-license-system
-    // (algo como "https://<project-ref>.supabase.co/functions/v1").
-    static constexpr const char* apiBaseUrl = "https://SEU-PROJETO.supabase.co/functions/v1";
+    static constexpr const char* apiBaseUrl = "https://xgbqtmspfwrcpxoyvxvl.supabase.co/functions/v1";
 
     explicit NFLicenseManager (juce::String productCodeIn) : productCode (std::move (productCodeIn))
     {
