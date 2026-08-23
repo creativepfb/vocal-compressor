@@ -174,7 +174,10 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     setConstrainer(&constrainer);
     setResizable(true, true);
 
-    setSize(juce::roundToInt(nativeW * 0.85f), juce::roundToInt(nativeH * 0.85f));
+    // Abre bem menor que o tamanho nativo (usuário reportou que 0.85 abria
+    // grande demais dentro da DAW) - o resize continua livre depois, é só
+    // o tamanho inicial que muda.
+    setSize(juce::roundToInt(nativeW * 0.45f), juce::roundToInt(nativeH * 0.45f));
 }
 
 VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
