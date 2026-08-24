@@ -25,7 +25,19 @@ public:
             g.drawImage(faceplate, getLocalBounds().toFloat());
     }
 
+    // Duplo clique no logo NF (área medida na imagem nativa 1525x920, ver
+    // logoBounds) reseta o tamanho da janela pro default - callback
+    // preenchido pelo editor, que é quem sabe o tamanho default/faz o
+    // setSize de verdade.
+    void mouseDoubleClick(const juce::MouseEvent& e) override
+    {
+        if (onLogoDoubleClicked && logoBounds.contains(e.position))
+            onLogoDoubleClicked();
+    }
+
     juce::Image faceplate;
+    juce::Rectangle<float> logoBounds { 250.0f, 15.0f, 250.0f, 95.0f };
+    std::function<void()> onLogoDoubleClicked;
 };
 
 class VocalCompressorAudioProcessorEditor : public juce::AudioProcessorEditor

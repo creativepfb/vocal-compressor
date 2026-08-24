@@ -99,6 +99,12 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate6_png, BinaryData::faceplate6_pngSize);
     nfLookAndFeel.knobImage = juce::ImageCache::getFromMemory(BinaryData::botaopng126px_png, BinaryData::botaopng126px_pngSize);
 
+    // Duplo clique no logo NF reseta a janela pro tamanho default (mesmo
+    // cálculo do setSize lá embaixo, no fim do construtor).
+    content.onLogoDoubleClicked = [this] {
+        setSize(juce::roundToInt(nativeW * 0.45f), juce::roundToInt(nativeH * 0.45f));
+    };
+
     setLookAndFeel(&nfLookAndFeel);
 
     addAndMakeVisible(content);
