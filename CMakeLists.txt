@@ -21,6 +21,11 @@ endif()
 
 juce_add_plugin(VocalCompressor
     COMPANY_NAME "NF AUDIO TOOLS"
+    # Bundle ID em minusculas/sem espaco, separado do COMPANY_NAME (que é só
+    # o nome de exibição) - o JUCE não sanitiza o nome da empresa ao montar
+    # o identificador reverse-DNS, e "NF AUDIO TOOLS" com espaço quebraria o
+    # Bundle ID no macOS (AU exige identificador válido, sem espaços).
+    BUNDLE_ID com.nfaudiotools.vocalcompressor
     PLUGIN_MANUFACTURER_CODE Nfat          # NF Audio Tools
     PLUGIN_CODE Vco1                       # troque por um código único de 4 letras
     FORMATS ${VOCALCOMPRESSOR_FORMATS}     # adicione AAX aqui depois de configurar o SDK da Avid

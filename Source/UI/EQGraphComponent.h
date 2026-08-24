@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include <functional>
 #include "NFLookAndFeel.h"
 #include "HardwareButton.h"
 #include "../DSP/SpectrumAnalyzer.h"
@@ -382,7 +383,7 @@ private:
         return juce::Decibels::gainToDecibels((float) mag, -60.0f);
     }
 
-    void drawCurve(juce::Graphics& g, juce::Rectangle<float> area)
+    juce::Path buildCurvePath(juce::Rectangle<float> area, const std::function<float(float)>& magnitudeFn) const
     {
         constexpr int steps = 300; // amostragem densa + suavização por bezier = curva bem lisa
         std::vector<juce::Point<float>> pts;
@@ -391,26 +392,55 @@ private:
         {
             float t = (float) i / (float) steps;
             float freq = minFreq * std::pow(maxFreq / minFreq, t);
-            float db = juce::jlimit(minDb, maxDb,
-                selected == SelectedFilter::Hpf ? hpfMagnitudeDb(freq) : combinedMagnitudeDb(freq));
+            float db = juce::jlimit(minDb, maxDb, magnitudeFn(freq));
             float x = area.getX() + t * area.getWidth();
             float y = dbToY(db, area);
             pts.push_back({ x, y });
         }
+        return buildSmoothPath(pts);
+    }
 
-        auto curve = buildSmoothPath(pts);
+    /** HPF (detector) e Pré EQ atuam AO MESMO TEMPO de verdade - as duas
+        curvas ficam sempre visíveis juntas (vermelha = HPF, laranja = Pré
+        EQ), nunca uma sumindo por causa da outra estar selecionada. A
+        seleção (`selected`) só decide qual delas fica com os nós
+        arrastáveis/editável - puramente visual/UX, ver drawNodes(). A
+        curva selecionada fica mais forte (glow maior); a outra, mais
+        discreta, só pra mostrar a influência dela. */
+    void drawCurve(juce::Graphics& g, juce::Rectangle<float> area)
+    {
+        auto drawOne = [&](const juce::Path& curve, juce::Colour colour, bool emphasised)
+        {
+            float glowAlpha = emphasised ? 0.18f : 0.08f;
+            float midAlpha = emphasised ? 0.35f : 0.18f;
+            float lineAlpha = emphasised ? 1.0f : 0.55f;
+            float glowWidth = emphasised ? 7.0f : 5.0f;
+            float midWidth = emphasised ? 4.0f : 3.0f;
+            float lineWidth = emphasised ? 2.0f : 1.6f;
 
-        auto curveColour = selected == SelectedFilter::Pre ? juce::Colour(0xffff9a3c)
-                                                             : juce::Colour(0xffff5b5b);
+            g.setColour(colour.withAlpha(glowAlpha));
+            g.strokePath(curve, juce::PathStrokeType(glowWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            g.setColour(colour.withAlpha(midAlpha));
+            g.strokePath(curve, juce::PathStrokeType(midWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            g.setColour(colour.withAlpha(lineAlpha));
+            g.strokePath(curve, juce::PathStrokeType(lineWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        };
 
-        // Glow suave por baixo + traço nítido por cima - dá a sensação de
-        // "brilho" de EQ profissional moderno sem pesar no desenho.
-        g.setColour(curveColour.withAlpha(0.18f));
-        g.strokePath(curve, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setColour(curveColour.withAlpha(0.35f));
-        g.strokePath(curve, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setColour(curveColour);
-        g.strokePath(curve, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        auto preCurve = buildCurvePath(area, [this](float f) { return combinedMagnitudeDb(f); });
+        auto hpfCurve = buildCurvePath(area, [this](float f) { return hpfMagnitudeDb(f); });
+
+        // A não-selecionada primeiro (fica "atrás" visualmente), a
+        // selecionada por cima, de propósito.
+        if (selected == SelectedFilter::Pre)
+        {
+            drawOne(hpfCurve, juce::Colour(0xffff5b5b), false);
+            drawOne(preCurve, juce::Colour(0xffff9a3c), true);
+        }
+        else
+        {
+            drawOne(preCurve, juce::Colour(0xffff9a3c), false);
+            drawOne(hpfCurve, juce::Colour(0xffff5b5b), true);
+        }
     }
 
     /** Atualiza o buffer suavizado do espectro (attack rápido, release mais
