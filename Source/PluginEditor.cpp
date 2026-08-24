@@ -91,7 +91,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
       inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb),
       inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb),
       rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
-      eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
+      eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0, p.spectrumAnalyzer),
       licenseOverlay(p.licenseManager)
 {
     content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate6_png, BinaryData::faceplate6_pngSize);
@@ -138,7 +138,12 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     content.addAndMakeVisible(preOnButton);
     content.addAndMakeVisible(hpfButton);
 
-    content.addAndMakeVisible(rtaDisplay);
+    // RTA antigo (barras) não é mais mostrado - o EQGraphComponent agora
+    // desenha o próprio espectro preenchido (mesmos dados do
+    // SpectrumAnalyzer), por cima. Mantido como child invisível só porque
+    // ainda ocupa o SpectrumAnalyzer/sampleRate como dependência - sem
+    // custo, não desenha nada.
+    content.addChildComponent(rtaDisplay);
     content.addAndMakeVisible(eqGraph); // por cima do RTA, de proposito
 
     auto& apvts = audioProcessor.apvts;

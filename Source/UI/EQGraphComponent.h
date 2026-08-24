@@ -3,6 +3,7 @@
 #include <juce_dsp/juce_dsp.h>
 #include "NFLookAndFeel.h"
 #include "HardwareButton.h"
+#include "../DSP/SpectrumAnalyzer.h"
 
 /**
     EQ paramétrico gráfico: fica por CIMA do RTA (componente separado, não
@@ -23,9 +24,13 @@ public:
         selecionado (mostrado/editável) no gráfico por vez. */
     enum class SelectedFilter { Pre, Hpf };
 
-    EQGraphComponent(juce::AudioProcessorValueTreeState& stateIn, double sampleRateIn)
-        : apvts(stateIn), sampleRate(sampleRateIn > 0.0 ? sampleRateIn : 44100.0)
+    EQGraphComponent(juce::AudioProcessorValueTreeState& stateIn, double sampleRateIn,
+                      const SpectrumAnalyzer& analyzerIn)
+        : apvts(stateIn), sampleRate(sampleRateIn > 0.0 ? sampleRateIn : 44100.0), analyzer(analyzerIn)
     {
+        for (auto& v : smoothedSpectrumDb)
+            v = spectrumMinDb;
+
         // onBase de cada nó = parâmetro de bypass INDIVIDUAL daquela banda
         // (duplo clique na bolinha liga/desliga - ver mouseDoubleClick).
         // Não confundir com o "Enabled" do estágio inteiro (preOnButton)
@@ -59,9 +64,12 @@ public:
 
     void paint(juce::Graphics& g) override
     {
+        g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
         auto area = getLocalBounds().toFloat().reduced(2.0f);
         drawGrid(g, area);
+        drawSpectrum(g, area);   // atrás da curva, de propósito
         drawCurve(g, area);
+        drawAxisLabels(g, area); // por cima do espectro/curva, sempre legível
         drawNodes(g, area);
         drawTooltip(g, area);
         drawHeader(g, area);
@@ -176,6 +184,18 @@ private:
     static constexpr float minDb = -15.0f;
     static constexpr float maxDb = 15.0f;
 
+    // Tamanho dos "knobs" das bandas - bem maiores que antes (6/8px), fácil
+    // de ver e clicar, como pedido.
+    static constexpr float nodeRadius = 11.0f;
+    static constexpr float nodeRadiusActive = 14.0f;
+
+    // Espectro preenchido: range de dB próprio (não o mesmo eixo +-15dB da
+    // curva de EQ) - o sinal de áudio real varia numa faixa bem mais ampla,
+    // mapeado pra ocupar a altura do gráfico de forma proporcional.
+    static constexpr int spectrumPoints = 200;
+    static constexpr float spectrumMinDb = -70.0f;
+    static constexpr float spectrumMaxDb = -6.0f;
+
     juce::String prefix() const { return "pre"; }
     juce::String fullId(const juce::String& base) const { return prefix() + base; }
 
@@ -231,19 +251,88 @@ private:
     int findNodeNear(juce::Point<float> pos, juce::Rectangle<float> area) const
     {
         for (int i = (int) nodes.size() - 1; i >= 0; --i)
-            if (pos.getDistanceFrom(nodePosition(nodes[(size_t) i], area)) < 12.0f)
+            if (pos.getDistanceFrom(nodePosition(nodes[(size_t) i], area)) < nodeRadiusActive + 4.0f)
                 return i;
         return -1;
     }
 
     void drawGrid(juce::Graphics& g, juce::Rectangle<float> area)
     {
-        g.setColour(juce::Colour(0x331c1c22));
+        // Linhas verticais discretas nas décadas de frequência + algumas
+        // intermediárias, bem apagadas - só uma referência visual, sem
+        // competir com a curva/espectro.
+        g.setColour(juce::Colour(0x261c2420));
+        for (float f : { 63.0f, 125.0f, 250.0f, 500.0f, 2000.0f, 4000.0f, 8000.0f })
+            g.drawVerticalLine(juce::roundToInt(freqToX(f, area)), area.getY(), area.getBottom());
+
+        g.setColour(juce::Colour(0x402a3430));
         for (float f : { 100.0f, 1000.0f, 10000.0f })
             g.drawVerticalLine(juce::roundToInt(freqToX(f, area)), area.getY(), area.getBottom());
 
+        // Linhas horizontais de dB - 0dB mais visível (linha de referência),
+        // as demais bem discretas.
+        for (float db : { -12.0f, -6.0f, 6.0f, 12.0f })
+        {
+            if (db < minDb || db > maxDb) continue;
+            g.setColour(juce::Colour(0x1c2a3430));
+            g.drawHorizontalLine(juce::roundToInt(dbToY(db, area)), area.getX(), area.getRight());
+        }
         g.setColour(juce::Colour(0x552a2a30));
         g.drawHorizontalLine(juce::roundToInt(dbToY(0.0f, area)), area.getX(), area.getRight());
+    }
+
+    /** Rótulos discretos de frequência (embaixo) e dB (à esquerda) - texto
+        pequeno, com uma pastilha escura atrás pra continuar legível mesmo
+        em cima do espectro/curva, sem disputar atenção com eles. */
+    void drawAxisLabels(juce::Graphics& g, juce::Rectangle<float> area)
+    {
+        g.setFont(juce::Font(juce::FontOptions(8.5f)));
+
+        auto drawChip = [&g](juce::Rectangle<float> box, const juce::String& text, juce::Justification j)
+        {
+            g.setColour(juce::Colours::black.withAlpha(0.38f));
+            g.fillRoundedRectangle(box, 2.5f);
+            g.setColour(NFLookAndFeel::kTextDim.withAlpha(0.85f));
+            g.drawFittedText(text, box.getSmallestIntegerContainer(), j, 1);
+        };
+
+        struct FreqLabel { float freq; const char* text; };
+        static const FreqLabel freqLabels[] = { { 31, "31" }, { 125, "125" }, { 500, "500" },
+                                                  { 2000, "2K" }, { 8000, "8K" }, { 16000, "16K" } };
+        for (auto& l : freqLabels)
+        {
+            float x = freqToX(l.freq, area);
+            drawChip({ x - 13.0f, area.getBottom() - 13.0f, 26.0f, 11.0f }, l.text, juce::Justification::centred);
+        }
+
+        struct DbLabel { float db; const char* text; };
+        static const DbLabel dbLabels[] = { { 12, "+12" }, { 0, "0" }, { -12, "-12" } };
+        for (auto& l : dbLabels)
+        {
+            if (l.db < minDb || l.db > maxDb) continue;
+            float y = dbToY(l.db, area);
+            drawChip({ area.getX() + 2.0f, y - 6.0f, 22.0f, 12.0f }, l.text, juce::Justification::centredLeft);
+        }
+    }
+
+    /** Suaviza um caminho de pontos com beziers quadráticas passando pelo
+        ponto médio de cada segmento - visualmente contínuo, sem "quinas"
+        entre amostras, custo desprezível (só geometria, nenhum cálculo de
+        DSP aqui). */
+    static juce::Path buildSmoothPath(const std::vector<juce::Point<float>>& pts)
+    {
+        juce::Path path;
+        if (pts.empty())
+            return path;
+
+        path.startNewSubPath(pts.front());
+        for (size_t i = 1; i < pts.size(); ++i)
+        {
+            auto mid = (pts[i - 1] + pts[i]) * 0.5f;
+            path.quadraticTo(pts[i - 1], mid);
+        }
+        path.lineTo(pts.back());
+        return path;
     }
 
     float combinedMagnitudeDb(float freq) const
@@ -293,8 +382,9 @@ private:
 
     void drawCurve(juce::Graphics& g, juce::Rectangle<float> area)
     {
-        juce::Path curve;
-        constexpr int steps = 150;
+        constexpr int steps = 300; // amostragem densa + suavização por bezier = curva bem lisa
+        std::vector<juce::Point<float>> pts;
+        pts.reserve(steps + 1);
         for (int i = 0; i <= steps; ++i)
         {
             float t = (float) i / (float) steps;
@@ -303,19 +393,78 @@ private:
                 selected == SelectedFilter::Hpf ? hpfMagnitudeDb(freq) : combinedMagnitudeDb(freq));
             float x = area.getX() + t * area.getWidth();
             float y = dbToY(db, area);
-
-            if (i == 0)
-                curve.startNewSubPath(x, y);
-            else
-                curve.lineTo(x, y);
+            pts.push_back({ x, y });
         }
+
+        auto curve = buildSmoothPath(pts);
 
         auto curveColour = selected == SelectedFilter::Pre ? juce::Colour(0xffff9a3c)
                                                              : juce::Colour(0xffff5b5b);
+
+        // Glow suave por baixo + traço nítido por cima - dá a sensação de
+        // "brilho" de EQ profissional moderno sem pesar no desenho.
+        g.setColour(curveColour.withAlpha(0.18f));
+        g.strokePath(curve, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         g.setColour(curveColour.withAlpha(0.35f));
-        g.strokePath(curve, juce::PathStrokeType(4.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.strokePath(curve, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         g.setColour(curveColour);
         g.strokePath(curve, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+
+    /** Atualiza o buffer suavizado do espectro (attack rápido, release mais
+        lento - efeito "fluido" de analisador profissional) a partir dos
+        bins já calculados pelo SpectrumAnalyzer (FFT no audio thread, ver
+        DSP/SpectrumAnalyzer.h). Só leitura de atomics + um lerp por ponto -
+        chamado 1x por frame do timer, nunca dentro de paint(). */
+    void updateSpectrumSmoothing()
+    {
+        float binHz = (float) (sampleRate / (double) SpectrumAnalyzer::fftSize);
+
+        for (int i = 0; i < spectrumPoints; ++i)
+        {
+            float t = (float) i / (float) (spectrumPoints - 1);
+            float freq = minFreq * std::pow(maxFreq / minFreq, t);
+            int bin = juce::jlimit(1, SpectrumAnalyzer::numBins - 1, (int) (freq / binHz));
+            float raw = analyzer.magnitudesDb[(size_t) bin].load();
+
+            float& smoothed = smoothedSpectrumDb[(size_t) i];
+            float coeff = raw > smoothed ? 0.55f : 0.12f; // sobe rápido, desce suave
+            smoothed += (raw - smoothed) * coeff;
+        }
+    }
+
+    /** Espectro em tempo real como área preenchida translúcida, atrás da
+        curva do EQ - substitui as barras verdes grosseiras de antes. Usa
+        só os dados já suavizados em updateSpectrumSmoothing(), nenhum
+        cálculo de FFT/DSP aqui dentro. */
+    void drawSpectrum(juce::Graphics& g, juce::Rectangle<float> area)
+    {
+        std::vector<juce::Point<float>> pts;
+        pts.reserve(spectrumPoints);
+        for (int i = 0; i < spectrumPoints; ++i)
+        {
+            float t = (float) i / (float) (spectrumPoints - 1);
+            float x = area.getX() + t * area.getWidth();
+            float frac = juce::jlimit(0.0f, 1.0f,
+                (smoothedSpectrumDb[(size_t) i] - spectrumMinDb) / (spectrumMaxDb - spectrumMinDb));
+            float y = area.getBottom() - frac * area.getHeight();
+            pts.push_back({ x, y });
+        }
+
+        auto line = buildSmoothPath(pts);
+
+        juce::Path fill(line);
+        fill.lineTo(area.getRight(), area.getBottom());
+        fill.lineTo(area.getX(), area.getBottom());
+        fill.closeSubPath();
+
+        juce::ColourGradient gradient(NFLookAndFeel::kGreen.withAlpha(0.28f), 0, area.getY(),
+                                       NFLookAndFeel::kGreen.withAlpha(0.02f), 0, area.getBottom(), false);
+        g.setGradientFill(gradient);
+        g.fillPath(fill);
+
+        g.setColour(NFLookAndFeel::kGreen.withAlpha(0.55f));
+        g.strokePath(line, juce::PathStrokeType(1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
     void drawNodes(juce::Graphics& g, juce::Rectangle<float> area)
@@ -328,12 +477,30 @@ private:
             auto& n = nodes[(size_t) i];
             auto p = nodePosition(n, area);
             bool isOn = n.onBase.isEmpty() || getReal(n.onBase) > 0.5f;
-            float radius = (i == hoverIndex || i == draggingIndex) ? 8.0f : 6.0f;
+            bool active = (i == hoverIndex || i == draggingIndex);
+            float radius = active ? nodeRadiusActive : nodeRadius;
+            float alpha = isOn ? 1.0f : 0.35f;
 
-            g.setColour(n.colour.withAlpha(isOn ? 0.85f : 0.30f));
+            // Glow externo suave, só pra dar profundidade/destaque sobre a curva.
+            g.setColour(n.colour.withAlpha(0.16f * alpha));
+            g.fillEllipse(p.x - radius * 1.9f, p.y - radius * 1.9f, radius * 3.8f, radius * 3.8f);
+
+            // Corpo do "knob" com leve gradiente radial (efeito de profundidade).
+            juce::ColourGradient body(n.colour.brighter(0.35f).withAlpha(alpha),
+                                       p.x - radius * 0.35f, p.y - radius * 0.4f,
+                                       n.colour.darker(0.25f).withAlpha(alpha),
+                                       p.x + radius * 0.5f, p.y + radius * 0.6f, true);
+            g.setGradientFill(body);
             g.fillEllipse(p.x - radius, p.y - radius, radius * 2.0f, radius * 2.0f);
-            g.setColour(juce::Colours::black.withAlpha(0.6f));
-            g.drawEllipse(p.x - radius, p.y - radius, radius * 2.0f, radius * 2.0f, 1.5f);
+
+            // Anel escuro de contorno, define bem o ponto sobre o espectro/curva.
+            g.setColour(juce::Colours::black.withAlpha(0.7f * alpha + 0.15f));
+            g.drawEllipse(p.x - radius, p.y - radius, radius * 2.0f, radius * 2.0f, active ? 2.2f : 1.6f);
+
+            // Pequeno brilho no canto superior esquerdo, reforça o aspecto de knob 3D.
+            g.setColour(juce::Colours::white.withAlpha(0.45f * alpha));
+            float hl = radius * 0.42f;
+            g.fillEllipse(p.x - radius * 0.42f, p.y - radius * 0.52f, hl, hl);
         }
     }
 
@@ -417,10 +584,16 @@ private:
         repaint();
     }
 
-    void timerCallback() override { repaint(); }
+    void timerCallback() override
+    {
+        updateSpectrumSmoothing();
+        repaint();
+    }
 
     juce::AudioProcessorValueTreeState& apvts;
     double sampleRate;
+    const SpectrumAnalyzer& analyzer;
+    std::array<float, spectrumPoints> smoothedSpectrumDb;
     std::vector<Node> nodes;
     SelectedFilter selected = SelectedFilter::Pre;
     int draggingIndex = -1;
