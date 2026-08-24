@@ -205,6 +205,11 @@ private:
         return raw != nullptr ? raw->load() : 0.0f;
     }
 
+    /** Estado do botão PRE COMP (liga/desliga o EQ inteiro no áudio, ver
+        PluginProcessor::processBlock) - usado pra desenhar a curva e os
+        nós em cinza (aparência "desligada") quando ele estiver OFF. */
+    bool isEqEnabled() const { return getReal("Enabled") > 0.5f; }
+
     void setRangedValue(const juce::String& base, float realValue)
     {
         if (auto* param = apvts.getParameter(fullId(base)))
@@ -361,17 +366,21 @@ private:
     }
 
     /** Curva do Pré EQ (único filtro que existe agora) - glow duplo pra dar
-        destaque sobre o espectro/grade atrás dela. */
+        destaque sobre o espectro/grade atrás dela. Quando o botão PRE COMP
+        está OFF (EQ bypassado no áudio de verdade), a curva fica cinza e
+        discreta - visualmente "desligada", em vez de continuar laranja
+        como se estivesse atuando. */
     void drawCurve(juce::Graphics& g, juce::Rectangle<float> area)
     {
         auto curve = buildCurvePath(area, [this](float f) { return combinedMagnitudeDb(f); });
-        auto colour = juce::Colour(0xffff9a3c);
+        bool enabled = isEqEnabled();
+        auto colour = enabled ? juce::Colour(0xffff9a3c) : juce::Colour(0xff707078);
 
-        g.setColour(colour.withAlpha(0.18f));
+        g.setColour(colour.withAlpha(enabled ? 0.18f : 0.09f));
         g.strokePath(curve, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setColour(colour.withAlpha(0.35f));
+        g.setColour(colour.withAlpha(enabled ? 0.35f : 0.16f));
         g.strokePath(curve, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setColour(colour);
+        g.setColour(colour.withAlpha(enabled ? 1.0f : 0.55f));
         g.strokePath(curve, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
@@ -431,8 +440,13 @@ private:
         g.strokePath(line, juce::PathStrokeType(1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
+    /** Desenha os 5 nós arrastáveis. Quando o PRE COMP está OFF, todos os
+        nós (independente da cor original de cada banda) ficam cinza e
+        mais apagados - mesma lógica "desligada" da curva, ver drawCurve(). */
     void drawNodes(juce::Graphics& g, juce::Rectangle<float> area)
     {
+        bool enabled = isEqEnabled();
+
         for (int i = 0; i < (int) nodes.size(); ++i)
         {
             auto& n = nodes[(size_t) i];
@@ -441,15 +455,19 @@ private:
             bool active = (i == hoverIndex || i == draggingIndex);
             float radius = active ? nodeRadiusActive : nodeRadius;
             float alpha = isOn ? 1.0f : 0.35f;
+            if (!enabled)
+                alpha *= 0.55f;
+
+            juce::Colour colour = enabled ? n.colour : juce::Colour(0xff8c8c92);
 
             // Glow externo suave, só pra dar profundidade/destaque sobre a curva.
-            g.setColour(n.colour.withAlpha(0.16f * alpha));
+            g.setColour(colour.withAlpha(0.16f * alpha));
             g.fillEllipse(p.x - radius * 1.9f, p.y - radius * 1.9f, radius * 3.8f, radius * 3.8f);
 
             // Corpo do "knob" com leve gradiente radial (efeito de profundidade).
-            juce::ColourGradient body(n.colour.brighter(0.35f).withAlpha(alpha),
+            juce::ColourGradient body(colour.brighter(0.35f).withAlpha(alpha),
                                        p.x - radius * 0.35f, p.y - radius * 0.4f,
-                                       n.colour.darker(0.25f).withAlpha(alpha),
+                                       colour.darker(0.25f).withAlpha(alpha),
                                        p.x + radius * 0.5f, p.y + radius * 0.6f, true);
             g.setGradientFill(body);
             g.fillEllipse(p.x - radius, p.y - radius, radius * 2.0f, radius * 2.0f);
@@ -498,16 +516,17 @@ private:
         return juce::String((int) freq) + " Hz";
     }
 
-    /** Rótulo PRE EQ, sempre no canto superior esquerdo (ao lado do botão
+    /** Rótulo PRE COMP, sempre no canto superior esquerdo (ao lado do botão
         físico RESET, que é um componente filho de verdade - ver
-        resetButton/resized()). */
+        resetButton/resized()). Cinza quando o EQ está OFF, mesma lógica da
+        curva/nós. */
     void drawHeader(juce::Graphics& g, juce::Rectangle<float> /*area*/)
     {
         auto labelBounds = juce::Rectangle<float>(resetButton.getRight() + 6.0f, (float) resetButton.getY(),
-                                                    70.0f, (float) resetButton.getHeight());
-        g.setColour(juce::Colour(0xffff9a3c));
+                                                    80.0f, (float) resetButton.getHeight());
+        g.setColour(isEqEnabled() ? juce::Colour(0xffff9a3c) : juce::Colour(0xff707078));
         g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
-        g.drawFittedText("PRE EQ", labelBounds.getSmallestIntegerContainer(),
+        g.drawFittedText("PRE COMP", labelBounds.getSmallestIntegerContainer(),
                           juce::Justification::centredLeft, 1);
     }
 

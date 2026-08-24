@@ -174,7 +174,7 @@ protected:
                 textColour = juce::Colours::white;
 
             g.setColour(textColour);
-            g.setFont(juce::Font(juce::FontOptions(juce::jlimit(9.0f, 13.0f, inner.getHeight() * 0.42f), juce::Font::bold)));
+            g.setFont(juce::Font(juce::FontOptions(juce::jlimit(9.0f, 16.0f, inner.getHeight() * 0.42f), juce::Font::bold)));
             g.drawFittedText(label, textArea.getSmallestIntegerContainer(), juce::Justification::centred, 1);
         }
     }

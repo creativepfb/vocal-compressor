@@ -61,10 +61,11 @@ private:
 
     // Botão físico compacto (corpo sempre preto/grafite, LED circular à
     // esquerda que acende quando ON) - ver UI/HardwareButton.h. Único
-    // dentro da caixa FILTER agora: PRE EQ - liga/desliga o EQ inteiro
-    // (parâmetro real, via attachment). O HPF do detector do compressor
-    // foi removido da UI (redundante - o Pre EQ já tem seu próprio Low Cut).
-    HardwareButton preOnButton { "PRE EQ" };
+    // dentro da caixa FILTER agora: PRE COMP (o EQ que atua antes do
+    // compressor) - liga/desliga o EQ inteiro (parâmetro real, via
+    // attachment). O HPF do detector do compressor foi removido da UI
+    // (redundante - o Pre EQ já tem seu próprio Low Cut).
+    HardwareButton preOnButton { "PRE COMP" };
 
     // BYPASS: no faceplate-5.png essa região do topo ficou lisa (sem caixa
     // preta nem texto impresso) - agora é SÓ este botão, com "BYPASS"
