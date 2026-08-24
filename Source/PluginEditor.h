@@ -59,13 +59,11 @@ private:
     LevelMeter inputMeter, outputMeter;
     DbReadout inputReadout, outputReadout;
 
-    // Botões físicos compactos (corpo sempre preto/grafite, LED circular
-    // à esquerda que acende quando ON) - ver UI/HardwareButton.h. Dois
-    // dentro da caixa FILTER: PRE EQ e HPF - cada clique liga/desliga o
-    // próprio estágio (parâmetro real, via attachment) E seleciona esse
-    // filtro pro gráfico (não são radio buttons - podem estar os dois ON
-    // ao mesmo tempo, só um fica SELECTED por vez).
-    HardwareButton hpfButton { "HPF" };
+    // Botão físico compacto (corpo sempre preto/grafite, LED circular à
+    // esquerda que acende quando ON) - ver UI/HardwareButton.h. Único
+    // dentro da caixa FILTER agora: PRE EQ - liga/desliga o EQ inteiro
+    // (parâmetro real, via attachment). O HPF do detector do compressor
+    // foi removido da UI (redundante - o Pre EQ já tem seu próprio Low Cut).
     HardwareButton preOnButton { "PRE EQ" };
 
     // BYPASS: no faceplate-5.png essa região do topo ficou lisa (sem caixa
@@ -86,7 +84,7 @@ private:
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     std::unique_ptr<SliderAttachment> thresholdAttach, ratioAttach, attackAttach,
                                        releaseAttach, driveAttach, makeupAttach, mixAttach;
-    std::unique_ptr<ButtonAttachment> hpfAttach, bypassAttach, preOnAttach;
+    std::unique_ptr<ButtonAttachment> bypassAttach, preOnAttach;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocalCompressorAudioProcessorEditor)
 };

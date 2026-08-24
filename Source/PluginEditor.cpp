@@ -71,10 +71,12 @@ namespace
     constexpr float rtaX0 = 0.252459f, rtaX1 = 0.752787f;
     constexpr float rtaY0 = 0.677174f, rtaY1 = 0.905435f;
 
-    // Caixa FILTER única (faceplate-4.png) - abriga os 3 botões push
-    // PRE EQ / POST EQ / HPF, empilhados verticalmente.
-    constexpr float filterX0 = 0.069508f, filterX1 = 0.180328f;
-    constexpr float filterY0 = 0.714130f, filterY1 = 0.901087f;
+    // Caixa FILTER (faceplate-6.png) - retângulo pontilhado único embaixo da
+    // escrita "FILTER", abriga o botão PRE EQ. Coordenadas medidas pixel a
+    // pixel na imagem nativa (1525x920): caixa pontilhada vai de
+    // (92,688) até (368,770).
+    constexpr float filterX0 = 0.060328f, filterX1 = 0.241311f;
+    constexpr float filterY0 = 0.747826f, filterY1 = 0.836957f;
 
     // Botão físico de BYPASS - no faceplate-5.png essa região do topo
     // ficou completamente lisa (sem caixa preta nem texto impresso), então
@@ -121,22 +123,13 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     bypassButton.setPulseTextWhenOn(true); // texto pulsa branco<->vermelho devagar quando ON
     content.addAndMakeVisible(bypassButton);
 
-    // PRE EQ / HPF: cada clique liga/desliga o próprio estágio (feito pelo
-    // ButtonAttachment abaixo) E seleciona esse filtro pro gráfico -
-    // independentes entre si, não é radio group de ON/OFF (os dois podem
-    // ficar ON ao mesmo tempo, só um fica SELECTED por vez, marcado com o
-    // aro fino no botão + rótulo no gráfico).
-    auto selectFilter = [this](EQGraphComponent::SelectedFilter f)
-    {
-        eqGraph.setSelectedFilter(f);
-        preOnButton.setSelectedForEditing(f == EQGraphComponent::SelectedFilter::Pre);
-        hpfButton.setSelectedForEditing(f == EQGraphComponent::SelectedFilter::Hpf);
-    };
-    preOnButton.onClick  = [this, selectFilter] { selectFilter(EQGraphComponent::SelectedFilter::Pre); };
-    hpfButton.onClick    = [this, selectFilter] { selectFilter(EQGraphComponent::SelectedFilter::Hpf); };
-    preOnButton.setSelectedForEditing(true); // EQGraphComponent começa mostrando o PRE
+    // PRE EQ: único botão da caixa FILTER agora - o clique liga/desliga o
+    // EQ inteiro de verdade (o ButtonAttachment abaixo já cuida disso
+    // sozinho, sem precisar de onClick customizado aqui). O aro de
+    // "selecionado" fica sempre aceso, já que é o único filtro que existe
+    // no gráfico agora (não tem mais o que selecionar entre HPF/Pre).
+    preOnButton.setSelectedForEditing(true);
     content.addAndMakeVisible(preOnButton);
-    content.addAndMakeVisible(hpfButton);
 
     // RTA antigo (barras) não é mais mostrado - o EQGraphComponent agora
     // desenha o próprio espectro preenchido (mesmos dados do
@@ -154,7 +147,6 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     driveAttach     = std::make_unique<SliderAttachment>(apvts, "drive", driveSlider);
     makeupAttach    = std::make_unique<SliderAttachment>(apvts, "makeup", makeupSlider);
     mixAttach       = std::make_unique<SliderAttachment>(apvts, "mix", mixSlider);
-    hpfAttach       = std::make_unique<ButtonAttachment>(apvts, "hpf", hpfButton);
     bypassAttach    = std::make_unique<ButtonAttachment>(apvts, "bypass", bypassButton);
     preOnAttach     = std::make_unique<ButtonAttachment>(apvts, "preEnabled", preOnButton);
 
@@ -267,29 +259,23 @@ void VocalCompressorAudioProcessorEditor::resized()
 
     grMeter.setBounds(fracRect(w, h, grMeterX0, grMeterY0, grMeterX1, grMeterY1));
 
-    // 2 botões compactos dentro da caixa FILTER única, ~20% menores que o
-    // "slot" disponível de cada linha (com margens e vão), centralizados
-    // dentro dele - PRE EQ / HPF.
+    // Botão único (PRE EQ) centralizado dentro do retângulo pontilhado da
+    // caixa FILTER.
     {
         auto filterBox = fracRect(w, h, filterX0, filterY0, filterX1, filterY1);
-        constexpr int sideMargin = 14;
-        constexpr int verticalMargin = 10;
-        constexpr int gap = 7;
-        constexpr float shrink = 0.8f; // ~20% menor que o slot
+        constexpr int sideMargin = 8;
+        constexpr float widthShrink = 0.85f;
+        constexpr float heightShrink = 0.75f;
 
         int slotW = filterBox.getWidth() - sideMargin * 2;
-        int slotH = (filterBox.getHeight() - verticalMargin * 2 - gap) / 2;
+        int slotH = filterBox.getHeight() - sideMargin * 2;
 
-        int buttonWidth = juce::roundToInt((float) slotW * shrink);
-        int buttonHeight = juce::roundToInt((float) slotH * shrink);
-        int buttonX = filterBox.getX() + sideMargin + (slotW - buttonWidth) / 2;
-        int rowExtraY = (slotH - buttonHeight) / 2;
+        int buttonWidth = juce::roundToInt((float) slotW * widthShrink);
+        int buttonHeight = juce::roundToInt((float) slotH * heightShrink);
+        int buttonX = filterBox.getX() + (filterBox.getWidth() - buttonWidth) / 2;
+        int buttonY = filterBox.getY() + (filterBox.getHeight() - buttonHeight) / 2;
 
-        int row0Y = filterBox.getY() + verticalMargin + rowExtraY;
-        int row1Y = filterBox.getY() + verticalMargin + slotH + gap + rowExtraY;
-
-        preOnButton.setBounds(buttonX, row0Y, buttonWidth, buttonHeight);
-        hpfButton.setBounds(buttonX, row1Y, buttonWidth, buttonHeight);
+        preOnButton.setBounds(buttonX, buttonY, buttonWidth, buttonHeight);
     }
 
     // Botão físico de BYPASS - sozinho na área lisa do topo.

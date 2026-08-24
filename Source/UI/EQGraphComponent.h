@@ -9,7 +9,7 @@
 /**
     EQ paramétrico gráfico: fica por CIMA do RTA (componente separado, não
     mexe nele). Mostra e edita o único EQ que existe (Pre, antes do
-    compressor) ou o HPF do detector, dependendo do botão selecionado.
+    compressor).
 
     Desenha a curva REAL (mesmos coeficientes IIR usados no áudio) e 5 nós
     arrastáveis: Low Cut - Peak - Peak - Peak - High Cut (as 3 bandas do
@@ -19,12 +19,6 @@
 class EQGraphComponent : public juce::Component, private juce::Timer
 {
 public:
-    /** ON/OFF (parâmetro de áudio real, por botão) e "qual filtro está
-        selecionado pro gráfico" são estados separados de propósito - o
-        EQ e o HPF podem estar ON ao mesmo tempo, mas só um fica
-        selecionado (mostrado/editável) no gráfico por vez. */
-    enum class SelectedFilter { Pre, Hpf };
-
     EQGraphComponent(juce::AudioProcessorValueTreeState& stateIn, double sampleRateIn,
                       const SpectrumAnalyzer& analyzerIn)
         : apvts(stateIn), sampleRate(sampleRateIn > 0.0 ? sampleRateIn : 44100.0), analyzer(analyzerIn)
@@ -53,16 +47,6 @@ public:
         startTimerHz(30);
     }
 
-    /** Troca qual filtro (Pre EQ ou HPF) é mostrado/editado no gráfico. Não
-        afeta o processamento de áudio nem os outros filtros - é só estado
-        da GUI. */
-    void setSelectedFilter(SelectedFilter f)
-    {
-        selected = f;
-        draggingIndex = hoverIndex = -1;
-        repaint();
-    }
-
     void paint(juce::Graphics& g) override
     {
         g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
@@ -85,9 +69,6 @@ public:
 
     void mouseDown(const juce::MouseEvent& e) override
     {
-        if (selected == SelectedFilter::Hpf)
-            return; // HPF não tem nós arrastáveis (filtro fixo, só on/off)
-
         auto area = getLocalBounds().toFloat().reduced(2.0f);
         draggingIndex = findNodeNear(e.position, area);
         repaint();
@@ -121,9 +102,6 @@ public:
         então o clique simples (seleção/arrasto) continua 100% intocado. */
     void mouseDoubleClick(const juce::MouseEvent& e) override
     {
-        if (selected == SelectedFilter::Hpf)
-            return;
-
         auto area = getLocalBounds().toFloat().reduced(2.0f);
         int hit = findNodeNear(e.position, area);
         if (hit < 0)
@@ -157,9 +135,6 @@ public:
 
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override
     {
-        if (selected == SelectedFilter::Hpf)
-            return;
-
         auto area = getLocalBounds().toFloat().reduced(2.0f);
         int hit = findNodeNear(e.position, area);
         if (hit < 0 || !nodes[(size_t) hit].hasQ)
@@ -368,21 +343,6 @@ private:
         return juce::Decibels::gainToDecibels((float) mag, -60.0f);
     }
 
-    /** Curva do HPF (filtro fixo do detector, ~120Hz - mesmo valor usado no
-        áudio, ver VocalCompressorDSP::highPassDetector) - sem nós, só liga/
-        desliga via o parâmetro "hpf". */
-    float hpfMagnitudeDb(float freq) const
-    {
-        auto* raw = apvts.getRawParameterValue("hpf");
-        if (raw == nullptr || raw->load() <= 0.5f)
-            return 0.0f;
-
-        constexpr float hpfFreq = 120.0f;
-        double mag = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, hpfFreq)
-                         ->getMagnitudeForFrequency((double) freq, sampleRate);
-        return juce::Decibels::gainToDecibels((float) mag, -60.0f);
-    }
-
     juce::Path buildCurvePath(juce::Rectangle<float> area, const std::function<float(float)>& magnitudeFn) const
     {
         constexpr int steps = 300; // amostragem densa + suavização por bezier = curva bem lisa
@@ -400,47 +360,19 @@ private:
         return buildSmoothPath(pts);
     }
 
-    /** HPF (detector) e Pré EQ atuam AO MESMO TEMPO de verdade - as duas
-        curvas ficam sempre visíveis juntas (vermelha = HPF, laranja = Pré
-        EQ), nunca uma sumindo por causa da outra estar selecionada. A
-        seleção (`selected`) só decide qual delas fica com os nós
-        arrastáveis/editável - puramente visual/UX, ver drawNodes(). A
-        curva selecionada fica mais forte (glow maior); a outra, mais
-        discreta, só pra mostrar a influência dela. */
+    /** Curva do Pré EQ (único filtro que existe agora) - glow duplo pra dar
+        destaque sobre o espectro/grade atrás dela. */
     void drawCurve(juce::Graphics& g, juce::Rectangle<float> area)
     {
-        auto drawOne = [&](const juce::Path& curve, juce::Colour colour, bool emphasised)
-        {
-            float glowAlpha = emphasised ? 0.18f : 0.08f;
-            float midAlpha = emphasised ? 0.35f : 0.18f;
-            float lineAlpha = emphasised ? 1.0f : 0.55f;
-            float glowWidth = emphasised ? 7.0f : 5.0f;
-            float midWidth = emphasised ? 4.0f : 3.0f;
-            float lineWidth = emphasised ? 2.0f : 1.6f;
+        auto curve = buildCurvePath(area, [this](float f) { return combinedMagnitudeDb(f); });
+        auto colour = juce::Colour(0xffff9a3c);
 
-            g.setColour(colour.withAlpha(glowAlpha));
-            g.strokePath(curve, juce::PathStrokeType(glowWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-            g.setColour(colour.withAlpha(midAlpha));
-            g.strokePath(curve, juce::PathStrokeType(midWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-            g.setColour(colour.withAlpha(lineAlpha));
-            g.strokePath(curve, juce::PathStrokeType(lineWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        };
-
-        auto preCurve = buildCurvePath(area, [this](float f) { return combinedMagnitudeDb(f); });
-        auto hpfCurve = buildCurvePath(area, [this](float f) { return hpfMagnitudeDb(f); });
-
-        // A não-selecionada primeiro (fica "atrás" visualmente), a
-        // selecionada por cima, de propósito.
-        if (selected == SelectedFilter::Pre)
-        {
-            drawOne(hpfCurve, juce::Colour(0xffff5b5b), false);
-            drawOne(preCurve, juce::Colour(0xffff9a3c), true);
-        }
-        else
-        {
-            drawOne(preCurve, juce::Colour(0xffff9a3c), false);
-            drawOne(hpfCurve, juce::Colour(0xffff5b5b), true);
-        }
+        g.setColour(colour.withAlpha(0.18f));
+        g.strokePath(curve, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour(colour.withAlpha(0.35f));
+        g.strokePath(curve, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour(colour);
+        g.strokePath(curve, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
     /** Atualiza o buffer suavizado do espectro (attack rápido, release mais
@@ -501,9 +433,6 @@ private:
 
     void drawNodes(juce::Graphics& g, juce::Rectangle<float> area)
     {
-        if (selected == SelectedFilter::Hpf)
-            return; // sem nós arrastáveis no modo HPF
-
         for (int i = 0; i < (int) nodes.size(); ++i)
         {
             auto& n = nodes[(size_t) i];
@@ -538,9 +467,6 @@ private:
 
     void drawTooltip(juce::Graphics& g, juce::Rectangle<float> area)
     {
-        if (selected == SelectedFilter::Hpf)
-            return;
-
         int idx = draggingIndex >= 0 ? draggingIndex : (hoverIndex >= 0 ? hoverIndex : -1);
         if (idx < 0)
             return;
@@ -572,35 +498,22 @@ private:
         return juce::String((int) freq) + " Hz";
     }
 
-    /** Rótulo PRE EQ / HPF, sempre no canto superior esquerdo (ao lado
-        do botão físico RESET, que é um componente filho de verdade -
-        ver resetButton/resized()), indicando qual filtro está sendo
-        mostrado/editado agora. */
+    /** Rótulo PRE EQ, sempre no canto superior esquerdo (ao lado do botão
+        físico RESET, que é um componente filho de verdade - ver
+        resetButton/resized()). */
     void drawHeader(juce::Graphics& g, juce::Rectangle<float> /*area*/)
     {
-        auto curveColour = selected == SelectedFilter::Pre ? juce::Colour(0xffff9a3c)
-                                                             : juce::Colour(0xffff5b5b);
-        juce::String label = selected == SelectedFilter::Pre ? "PRE EQ" : "HPF";
         auto labelBounds = juce::Rectangle<float>(resetButton.getRight() + 6.0f, (float) resetButton.getY(),
                                                     70.0f, (float) resetButton.getHeight());
-        g.setColour(curveColour);
+        g.setColour(juce::Colour(0xffff9a3c));
         g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
-        g.drawFittedText(label, labelBounds.getSmallestIntegerContainer(),
+        g.drawFittedText("PRE EQ", labelBounds.getSmallestIntegerContainer(),
                           juce::Justification::centredLeft, 1);
     }
 
-    /** Reseta pro valor default SOMENTE o filtro atualmente selecionado
-        (Pre, Post ou HPF) - nunca mexe nos outros. */
+    /** Reseta pro valor default o Pré EQ (único filtro que existe agora). */
     void resetSelectedEQ()
     {
-        if (selected == SelectedFilter::Hpf)
-        {
-            if (auto* param = apvts.getParameter("hpf"))
-                param->setValueNotifyingHost(param->getDefaultValue());
-            repaint();
-            return;
-        }
-
         static const char* bases[] = {
             "LowCutOn", "LowCutFreq",
             "LowShelfOn", "LowShelfFreq", "LowShelfGain", "LowShelfQ",
@@ -627,7 +540,6 @@ private:
     const SpectrumAnalyzer& analyzer;
     std::array<float, spectrumPoints> smoothedSpectrumDb;
     std::vector<Node> nodes;
-    SelectedFilter selected = SelectedFilter::Pre;
     int draggingIndex = -1;
     int hoverIndex = -1;
     HardwareButton resetButton { "RESET" };
