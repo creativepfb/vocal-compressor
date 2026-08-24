@@ -256,58 +256,60 @@ private:
         return -1;
     }
 
+    // Mesmo conjunto de frequências usado na grade E nos rótulos - listado
+    // uma vez só, pra sempre bater um com o outro (igual EQs profissionais
+    // tipo Waves F6: uma linha de grade PRA CADA rótulo, não um subconjunto).
+    struct FreqTick { float freq; const char* text; };
+    static constexpr FreqTick freqTicks[] = { { 31, "31" }, { 63, "63" }, { 125, "125" }, { 250, "250" },
+                                                { 500, "500" }, { 1000, "1K" }, { 2000, "2K" }, { 4000, "4K" },
+                                                { 8000, "8K" }, { 16000, "16K" } };
+    struct DbTick { float db; const char* text; };
+    static constexpr DbTick dbTicks[] = { { 12, "+12" }, { 6, "+6" }, { 0, "0" }, { -6, "-6" }, { -12, "-12" } };
+
     void drawGrid(juce::Graphics& g, juce::Rectangle<float> area)
     {
-        // Linhas verticais discretas nas décadas de frequência + algumas
-        // intermediárias, bem apagadas - só uma referência visual, sem
-        // competir com a curva/espectro.
-        g.setColour(juce::Colour(0x261c2420));
-        for (float f : { 63.0f, 125.0f, 250.0f, 500.0f, 2000.0f, 4000.0f, 8000.0f })
-            g.drawVerticalLine(juce::roundToInt(freqToX(f, area)), area.getY(), area.getBottom());
+        // Uma linha vertical por frequência marcada, mesma densidade dos
+        // rótulos - discretas, mas cobrindo a escala toda.
+        g.setColour(juce::Colour(0x332a3430));
+        for (auto& t : freqTicks)
+            g.drawVerticalLine(juce::roundToInt(freqToX(t.freq, area)), area.getY(), area.getBottom());
 
-        g.setColour(juce::Colour(0x402a3430));
-        for (float f : { 100.0f, 1000.0f, 10000.0f })
-            g.drawVerticalLine(juce::roundToInt(freqToX(f, area)), area.getY(), area.getBottom());
-
-        // Linhas horizontais de dB - 0dB mais visível (linha de referência),
-        // as demais bem discretas.
-        for (float db : { -12.0f, -6.0f, 6.0f, 12.0f })
+        // Linhas horizontais de dB - 0dB mais visível (linha de referência).
+        for (auto& t : dbTicks)
         {
-            if (db < minDb || db > maxDb) continue;
-            g.setColour(juce::Colour(0x1c2a3430));
-            g.drawHorizontalLine(juce::roundToInt(dbToY(db, area)), area.getX(), area.getRight());
+            if (t.db == 0.0f || t.db < minDb || t.db > maxDb) continue;
+            g.setColour(juce::Colour(0x262a3430));
+            g.drawHorizontalLine(juce::roundToInt(dbToY(t.db, area)), area.getX(), area.getRight());
         }
-        g.setColour(juce::Colour(0x552a2a30));
+        g.setColour(juce::Colour(0x662a3430));
         g.drawHorizontalLine(juce::roundToInt(dbToY(0.0f, area)), area.getX(), area.getRight());
     }
 
-    /** Rótulos discretos de frequência (embaixo) e dB (à esquerda) - texto
-        pequeno, com uma pastilha escura atrás pra continuar legível mesmo
-        em cima do espectro/curva, sem disputar atenção com eles. */
+    /** Rótulos de frequência (embaixo) e dB (à esquerda), com uma pastilha
+        escura atrás pra ficar bem legível mesmo em cima do espectro/curva -
+        mesma densidade/legibilidade de um EQ profissional (ex: Waves F6). */
     void drawAxisLabels(juce::Graphics& g, juce::Rectangle<float> area)
     {
-        g.setFont(juce::Font(juce::FontOptions(8.5f)));
+        g.setFont(juce::Font(juce::FontOptions(10.0f, juce::Font::bold)));
 
         auto drawChip = [&g](juce::Rectangle<float> box, const juce::String& text, juce::Justification j)
         {
-            g.setColour(juce::Colours::black.withAlpha(0.38f));
+            g.setColour(juce::Colours::black.withAlpha(0.55f));
             g.fillRoundedRectangle(box, 2.5f);
-            g.setColour(NFLookAndFeel::kTextDim.withAlpha(0.85f));
+            g.setColour(juce::Colour(0xffe4e4e8));
             g.drawFittedText(text, box.getSmallestIntegerContainer(), j, 1);
         };
 
-        struct FreqLabel { float freq; const char* text; };
-        static const FreqLabel freqLabels[] = { { 31, "31" }, { 125, "125" }, { 500, "500" },
-                                                  { 2000, "2K" }, { 8000, "8K" }, { 16000, "16K" } };
-        for (auto& l : freqLabels)
+        for (auto& l : freqTicks)
         {
-            float x = freqToX(l.freq, area);
-            drawChip({ x - 13.0f, area.getBottom() - 13.0f, 26.0f, 11.0f }, l.text, juce::Justification::centred);
+            // Encosta as pontas (31 e 16K) pra dentro, senão a pastilha
+            // fica cortada na borda do gráfico.
+            float halfW = 14.0f;
+            float x = juce::jlimit(area.getX() + halfW, area.getRight() - halfW, freqToX(l.freq, area));
+            drawChip({ x - halfW, area.getBottom() - 14.0f, halfW * 2.0f, 12.0f }, l.text, juce::Justification::centred);
         }
 
-        struct DbLabel { float db; const char* text; };
-        static const DbLabel dbLabels[] = { { 12, "+12" }, { 0, "0" }, { -12, "-12" } };
-        for (auto& l : dbLabels)
+        for (auto& l : dbTicks)
         {
             if (l.db < minDb || l.db > maxDb) continue;
             float y = dbToY(l.db, area);
