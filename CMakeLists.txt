@@ -30,6 +30,12 @@ juce_add_plugin(VocalCompressor
     PLUGIN_CODE Vco1                       # troque por um código único de 4 letras
     FORMATS ${VOCALCOMPRESSOR_FORMATS}     # adicione AAX aqui depois de configurar o SDK da Avid
     PRODUCT_NAME "NF - Vocal Compressor"
+    # Ícone embutido no .exe/.app do Standalone (o que aparece na barra de
+    # tarefas do Windows, Alt-Tab, Dock do macOS) - sem isso o JUCE usa um
+    # ícone genérico. O juceaide gera .ico/.icns automaticamente a partir
+    # desse PNG único em tempo de build.
+    ICON_BIG "Source/Resources/app-icon.png"
+    ICON_SMALL "Source/Resources/app-icon.png"
 )
 
 target_sources(VocalCompressor
