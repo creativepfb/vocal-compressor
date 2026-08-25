@@ -46,9 +46,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; Standalone (app de verdade, com ícone/atalho)
 Source: "..\..\build\VocalCompressor_artefacts\Release\Standalone\NF - Vocal Compressor.exe"; DestDir: "{app}"; Flags: ignoreversion
 
-; VST3 - pasta padrão do Windows pra plugins VST3 de 64 bits. O VST3 é um
-; "bundle" (pasta com subpastas dentro), por isso recursesubdirs.
-Source: "..\..\build\VocalCompressor_artefacts\Release\VST3\NF - Vocal Compressor.vst3\*"; DestDir: "{commoncf64}\VST3\NF - Vocal Compressor.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
+; VST3 - pasta padrão do Windows pra plugins VST3 de 64 bits, agrupado
+; numa subpasta "NF Plugins" (mesmo padrão usado no Program Files/Menu
+; Iniciar) pra juntar todos os plugins da marca num lugar só. O VST3 é
+; um "bundle" (pasta com subpastas dentro - Contents\x86_64-win\ etc,
+; formato exigido pelo próprio padrão VST3, não dá pra achatar), por
+; isso recursesubdirs.
+Source: "..\..\build\VocalCompressor_artefacts\Release\VST3\NF - Vocal Compressor.vst3\*"; DestDir: "{commoncf64}\VST3\NF Plugins\NF - Vocal Compressor.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -61,7 +65,7 @@ Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDesc
 [UninstallDelete]
 ; Garante que a pasta inteira do VST3 (bundle) some no uninstall, não só
 ; os arquivos que o Inno rastreou individualmente.
-Type: filesandordirs; Name: "{commoncf64}\VST3\NF - Vocal Compressor.vst3"
+Type: filesandordirs; Name: "{commoncf64}\VST3\NF Plugins\NF - Vocal Compressor.vst3"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Abrir {#MyAppName} agora"; Flags: nowait postinstall skipifsilent
