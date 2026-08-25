@@ -25,8 +25,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item -Recurse "build/VocalCompressor_artefacts/Release/VST3/Vocal Compressor.vst3" "dist/"
-          Copy-Item "build/VocalCompressor_artefacts/Release/Standalone/Vocal Compressor.exe" "dist/"
+          Copy-Item -Recurse "build/VocalCompressor_artefacts/Release/VST3/NF - Vocal Compressor.vst3" "dist/"
+          Copy-Item "build/VocalCompressor_artefacts/Release/Standalone/NF - Vocal Compressor.exe" "dist/"
           Compress-Archive -Path "dist/*" -DestinationPath "VocalCompressor-Windows.zip" -Force
 
       - name: Build installer (Inno Setup)
@@ -56,7 +56,7 @@ jobs:
           cp "installer_output/VocalCompressor-Windows-Installer.exe" "vocal-compressor-windows-setup.exe"
           gh release view vocal-compressor --repo creativepfb/nf-releases >/dev/null 2>&1 || \
             gh release create vocal-compressor --repo creativepfb/nf-releases \
-              --title "Vocal Compressor" \
+              --title "NF - Vocal Compressor" \
               --notes "Instaladores publicados automaticamente pelo CI - sempre a versao mais recente."
           gh release upload vocal-compressor \
             "vocal-compressor-windows-setup.exe" \

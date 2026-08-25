@@ -24,18 +24,18 @@ jobs:
       - name: Package ZIP (teste rápido, sem instalador)
         run: |
           mkdir -p dist
-          cp -R "build/VocalCompressor_artefacts/Release/VST3/Vocal Compressor.vst3" dist/
-          cp -R "build/VocalCompressor_artefacts/Release/AU/Vocal Compressor.component" dist/
-          cp -R "build/VocalCompressor_artefacts/Release/Standalone/Vocal Compressor.app" dist/
+          cp -R "build/VocalCompressor_artefacts/Release/VST3/NF - Vocal Compressor.vst3" dist/
+          cp -R "build/VocalCompressor_artefacts/Release/AU/NF - Vocal Compressor.component" dist/
+          cp -R "build/VocalCompressor_artefacts/Release/Standalone/NF - Vocal Compressor.app" dist/
           ls -la dist
           (cd dist && zip -r -y "../VocalCompressor-macOS.zip" .)
 
       - name: Build installer (.pkg instalando nos 3 destinos + .dmg)
         run: |
           mkdir -p pkgroot/vst3 pkgroot/au pkgroot/app
-          cp -R "build/VocalCompressor_artefacts/Release/VST3/Vocal Compressor.vst3" pkgroot/vst3/
-          cp -R "build/VocalCompressor_artefacts/Release/AU/Vocal Compressor.component" pkgroot/au/
-          cp -R "build/VocalCompressor_artefacts/Release/Standalone/Vocal Compressor.app" pkgroot/app/
+          cp -R "build/VocalCompressor_artefacts/Release/VST3/NF - Vocal Compressor.vst3" pkgroot/vst3/
+          cp -R "build/VocalCompressor_artefacts/Release/AU/NF - Vocal Compressor.component" pkgroot/au/
+          cp -R "build/VocalCompressor_artefacts/Release/Standalone/NF - Vocal Compressor.app" pkgroot/app/
 
           pkgbuild --root pkgroot/vst3 --install-location "/Library/Audio/Plug-Ins/VST3" \
             --identifier com.nf.vocalcompressor.vst3 --version 1.0 vst3.pkg
@@ -47,7 +47,7 @@ jobs:
           cat > distribution.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <installer-gui-script minSpecVersion="1">
-              <title>Vocal Compressor</title>
+              <title>NF - Vocal Compressor</title>
               <options customize="never" require-scripts="false"/>
               <choices-outline>
                   <line choice="default">
@@ -66,10 +66,10 @@ jobs:
           </installer-gui-script>
           EOF
 
-          productbuild --distribution distribution.xml --package-path . "Vocal Compressor Installer.pkg"
+          productbuild --distribution distribution.xml --package-path . "NF - Vocal Compressor Installer.pkg"
 
           mkdir -p dmg_root
-          cp "Vocal Compressor Installer.pkg" dmg_root/
+          cp "NF - Vocal Compressor Installer.pkg" dmg_root/
 
           # Ícone da marca NF Plugins no volume do DMG (o que aparece quando
           # a pessoa monta o .dmg) e no próprio arquivo .dmg (o que aparece
@@ -94,7 +94,7 @@ jobs:
             SetFile -c icnC dmg_root/.VolumeIcon.icns || true
           fi
 
-          hdiutil create -volname "Vocal Compressor" -srcfolder dmg_root -ov -format UDZO VocalCompressor-macOS.dmg
+          hdiutil create -volname "NF - Vocal Compressor" -srcfolder dmg_root -ov -format UDZO VocalCompressor-macOS.dmg
 
           if [ -f icon.icns ]; then
             DeRez -only icns icon.icns > icon.rsrc || true
@@ -123,7 +123,7 @@ jobs:
           cp "VocalCompressor-macOS.dmg" "vocal-compressor-macos.dmg"
           gh release view vocal-compressor --repo creativepfb/nf-releases >/dev/null 2>&1 || \
             gh release create vocal-compressor --repo creativepfb/nf-releases \
-              --title "Vocal Compressor" \
+              --title "NF - Vocal Compressor" \
               --notes "Instaladores publicados automaticamente pelo CI - sempre a versao mais recente."
           gh release upload vocal-compressor \
             "vocal-compressor-macos.dmg" \

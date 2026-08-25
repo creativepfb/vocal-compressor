@@ -29,7 +29,7 @@ juce_add_plugin(VocalCompressor
     PLUGIN_MANUFACTURER_CODE Nfat          # NF Audio Tools
     PLUGIN_CODE Vco1                       # troque por um código único de 4 letras
     FORMATS ${VOCALCOMPRESSOR_FORMATS}     # adicione AAX aqui depois de configurar o SDK da Avid
-    PRODUCT_NAME "Vocal Compressor"
+    PRODUCT_NAME "NF - Vocal Compressor"
 )
 
 target_sources(VocalCompressor
