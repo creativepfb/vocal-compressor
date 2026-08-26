@@ -4,6 +4,7 @@
 #include "DSP/VoiceEQ.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "License/NFLicenseManager.h"
+#include "Presets/PresetManager.h"
 
 /** Ponteiros pros parâmetros de UM estágio de EQ completo (Pre ou Post) -
     evita duplicar 12 campos nomeados x2 no processor. */
@@ -96,6 +97,14 @@ public:
     }
 
     juce::AudioProcessorValueTreeState apvts;
+
+    // Sistema de presets - lê/escreve o MESMO apvts acima (ver
+    // Presets/PresetManager.h), sem duplicar nenhum parâmetro. Declarado
+    // logo depois do apvts de propósito: precisa ser construído DEPOIS
+    // dele (a ordem de construção segue a ordem de declaração na classe,
+    // não a da lista de inicialização do construtor).
+    PresetManager presetManager { apvts };
+
     std::atomic<float> currentGainReductionDb { 0.0f };
     std::atomic<float> currentInputDb { -60.0f };
     std::atomic<float> currentOutputDb { -60.0f };

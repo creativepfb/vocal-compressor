@@ -31,6 +31,14 @@ public:
         setColour(juce::Slider::textBoxTextColourId, kTextLight);
         setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
         setColour(juce::Label::textColourId, kTextDim);
+
+        // Menu de presets (PresetBarComponent) - escuro/roxo, combinando
+        // com o resto da interface em vez do cinza padrão do JUCE.
+        setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xff19191d));
+        setColour(juce::PopupMenu::textColourId, kTextLight);
+        setColour(juce::PopupMenu::headerTextColourId, kTextDim);
+        setColour(juce::PopupMenu::highlightedBackgroundColourId, kPurple.withAlpha(0.35f));
+        setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
     }
 
     /** Imagem única do knob (com o próprio anel roxo + indicador verde

@@ -78,13 +78,19 @@ namespace
     constexpr float filterX0 = 0.060328f, filterX1 = 0.241311f;
     constexpr float filterY0 = 0.747826f, filterY1 = 0.836957f;
 
-    // Botão físico de BYPASS - no faceplate-5.png essa região do topo
-    // ficou completamente lisa (sem caixa preta nem texto impresso), então
-    // o botão (com "BYPASS" desenhado dentro dele mesmo) é o único
-    // elemento aqui. Posição escolhida na área lisa, longe do parafuso
-    // decorativo no canto e da borda do painel OUTPUT.
-    constexpr float bypassBtnX0 = 0.773770f, bypassBtnX1 = 0.885246f;
-    constexpr float bypassBtnY0 = 0.054348f, bypassBtnY1 = 0.108696f;
+    // Botão físico de BYPASS - fica na área vazia entre o gráfico
+    // Spectrum/RTA (termina em rtaX1) e a caixa GR (começa em
+    // grMeterX0), centralizado nesse vão tanto na horizontal quanto na
+    // vertical (mesma faixa Y da caixa GR). Mesmo tamanho de sempre
+    // (~170x50px nativos), só a posição mudou - saiu do topo direito.
+    constexpr float bypassBtnX0 = 0.777377f, bypassBtnX1 = 0.888853f;
+    constexpr float bypassBtnY0 = 0.768478f, bypassBtnY1 = 0.822826f;
+
+    // Barra de presets ("‹ Nome › ☰") no topo, à direita do título "NF
+    // VOCAL COMPRESSOR" - área medida pixel a pixel na imagem nativa
+    // (1525x920): livre de texto/parafuso entre (980,111) e (1440,146).
+    constexpr float presetBarX0 = 0.642623f, presetBarX1 = 0.944262f;
+    constexpr float presetBarY0 = 0.120652f, presetBarY1 = 0.158696f;
 }
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
@@ -94,6 +100,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
       inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb),
       rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
       eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0, p.spectrumAnalyzer),
+      presetBar(p.presetManager),
       licenseOverlay(p.licenseManager)
 {
     content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate6_png, BinaryData::faceplate6_pngSize);
@@ -145,6 +152,8 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     content.addChildComponent(rtaDisplay);
     content.addAndMakeVisible(eqGraph); // por cima do RTA, de proposito
 
+    content.addAndMakeVisible(presetBar);
+
     auto& apvts = audioProcessor.apvts;
     thresholdAttach = std::make_unique<SliderAttachment>(apvts, "threshold", thresholdSlider);
     ratioAttach     = std::make_unique<SliderAttachment>(apvts, "ratio", ratioSlider);
@@ -166,6 +175,18 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     addChildComponent(licenseOverlay);
     licenseOverlay.setVisible(! audioProcessor.licenseManager.isActivated());
     licenseOverlay.onActivated = [this] { licenseOverlay.setVisible(false); };
+
+    // Sistema de presets: o diálogo de nome fica num filho do EDITOR (não
+    // da "content" escalada), igual o licenseOverlay - assim cobre a
+    // janela toda e o texto digitado não fica distorcido pelo transform
+    // de escala. Só aparece quando a barra pede (menu "Save Preset...").
+    addChildComponent(presetNameDialog);
+    presetBar.onSaveRequested = [this] {
+        presetNameDialog.show(audioProcessor.presetManager.getCurrentPresetName());
+    };
+    presetNameDialog.onSave = [this](const juce::String& name) {
+        audioProcessor.presetManager.savePreset(name);
+    };
 
     // Janela redimensionável, proporção travada na da faceplate.
     constrainer.setFixedAspectRatio((double) nativeW / (double) nativeH);
@@ -284,15 +305,19 @@ void VocalCompressorAudioProcessorEditor::resized()
         preOnButton.setBounds(buttonX, buttonY, buttonWidth, buttonHeight);
     }
 
-    // Botão físico de BYPASS - sozinho na área lisa do topo.
+    // Botão físico de BYPASS - área vazia ao lado do gráfico Spectrum/RTA.
     bypassButton.setBounds(fracRect(w, h, bypassBtnX0, bypassBtnY0, bypassBtnX1, bypassBtnY1));
 
     rtaDisplay.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
     eqGraph.setBounds(fracRect(w, h, rtaX0, rtaY0, rtaX1, rtaY1));
 
-    // Popup de licença cobre a JANELA inteira (não a "content" nativa) -
-    // fica direto num filho do editor, fora do transform de escala. Ele
-    // mesmo só escurece o fundo e centraliza um cartão pequeno - o resto
-    // do plugin continua visível por baixo, semi-transparente.
+    presetBar.setBounds(fracRect(w, h, presetBarX0, presetBarY0, presetBarX1, presetBarY1));
+
+    // Popup de licença e diálogo de salvar preset cobrem a JANELA inteira
+    // (não a "content" nativa) - ficam direto em filhos do editor, fora do
+    // transform de escala (senão o texto digitado ficaria distorcido).
+    // Cada um só escurece o fundo e centraliza um cartão pequeno quando
+    // visível - o resto do plugin continua visível por baixo.
     licenseOverlay.setBounds(getLocalBounds());
+    presetNameDialog.setBounds(getLocalBounds());
 }

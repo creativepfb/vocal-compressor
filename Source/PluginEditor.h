@@ -9,6 +9,8 @@
 #include "UI/ValueReadout.h"
 #include "UI/HardwareButton.h"
 #include "UI/EQGraphComponent.h"
+#include "UI/PresetBarComponent.h"
+#include "UI/PresetNameDialog.h"
 #include "License/LicenseActivationComponent.h"
 
 /** Segura a faceplate + todos os controles, sempre no tamanho nativo da
@@ -79,14 +81,22 @@ private:
     // (redundante - o Pre EQ já tem seu próprio Low Cut).
     HardwareButton preOnButton { "PRE COMP" };
 
-    // BYPASS: no faceplate-5.png essa região do topo ficou lisa (sem caixa
-    // preta nem texto impresso) - agora é SÓ este botão, com "BYPASS"
-    // desenhado dentro dele mesmo (texto pulsando branco<->vermelho quando
-    // ON, ver HardwareButton::setPulseTextWhenOn).
+    // BYPASS: fica na área vazia à direita do gráfico Spectrum/RTA (mesma
+    // altura da caixa GR, ao lado dela) - texto "BYPASS" desenhado dentro
+    // do próprio botão, pulsando branco<->vermelho quando ON (ver
+    // HardwareButton::setPulseTextWhenOn). Comportamento/attachment
+    // idênticos a antes, só a posição visual mudou.
     HardwareButton bypassButton { "BYPASS" };
 
     RTADisplay rtaDisplay;
     EQGraphComponent eqGraph;
+
+    // Barra de presets ("‹ Nome › ☰") no topo, à direita do título - ver
+    // UI/PresetBarComponent.h. O diálogo de nome só aparece quando o
+    // usuário escolhe "Save Preset..." no menu dela (mesmo padrão do
+    // licenseOverlay: cobre a janela toda, escondido por padrão).
+    PresetBarComponent presetBar;
+    PresetNameDialog presetNameDialog;
 
     // NF License System - overlay que cobre a GUI toda enquanto o
     // produto não estiver ativado (o áudio já fica mudo no processor
