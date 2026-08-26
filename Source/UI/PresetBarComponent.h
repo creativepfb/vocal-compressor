@@ -87,7 +87,7 @@ public:
             text += " *";
 
         g.setColour(NFLookAndFeel::kKnobGreen);
-        g.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
+        g.setFont(juce::Font(juce::FontOptions(juce::jmin(19.0f, getHeight() * 0.4f), juce::Font::bold)));
         g.drawFittedText(text, regions.name.getSmallestIntegerContainer(), juce::Justification::centred, 1);
 
         // Separador fino antes do menu.
@@ -128,7 +128,11 @@ private:
     Regions computeRegions() const
     {
         auto area = getLocalBounds().toFloat().reduced(3.0f);
-        constexpr float arrowW = 32.0f, menuW = 34.0f, gap = 4.0f;
+        // Proporcionais à altura da barra (que agora varia - ficou bem
+        // mais alta) em vez de fixos, pra escalar direito.
+        float arrowW = juce::jmax(32.0f, getHeight() * 0.62f);
+        float menuW = juce::jmax(34.0f, getHeight() * 0.66f);
+        float gap = 4.0f;
 
         Regions r;
         r.prev = area.removeFromLeft(arrowW);
@@ -154,7 +158,8 @@ private:
         for (int i = 0; i < all.size(); ++i)
             menu.addItem(i + 1, all[i], true, all[i] == current);
 
-        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this),
+        auto nameArea = localAreaToGlobal(computeRegions().name.getSmallestIntegerContainer());
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(nameArea),
                             [this, all](int result)
         {
             if (result >= 1 && result <= all.size())
@@ -184,7 +189,12 @@ private:
         menu.addSeparator();
         menu.addItem(2, "Open Preset Folder");
 
-        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this),
+        // Ancora especificamente embaixo do ícone hamburguer (lado
+        // direito da barra), não do componente inteiro - senão o JUCE
+        // decide a posição com base na largura toda da barra e o menu
+        // acaba abrindo deslocado pra esquerda.
+        auto menuArea = localAreaToGlobal(computeRegions().menu.getSmallestIntegerContainer());
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(menuArea),
                             [this, names](int result)
         {
             if (result == 1)

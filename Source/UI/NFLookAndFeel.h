@@ -148,6 +148,14 @@ public:
         return juce::Font(juce::FontOptions(12.0f, juce::Font::bold));
     }
 
+    // Menu de presets (PresetBarComponent) - fonte maior que o padrão do
+    // JUCE, deixa os itens do popup mais altos/legíveis (o JUCE calcula
+    // a altura de cada linha proporcional a essa fonte).
+    juce::Font getPopupMenuFont() override
+    {
+        return juce::Font(juce::FontOptions(17.0f));
+    }
+
     static void drawMeterBackground(juce::Graphics& g, juce::Rectangle<float> bounds)
     {
         g.setColour(juce::Colours::black.withAlpha(0.5f));

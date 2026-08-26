@@ -89,10 +89,14 @@ namespace
 
     // Barra de presets ("‹ Nome › ☰") no topo, à direita do título "NF
     // VOCAL COMPRESSOR" - usa quase todo o vão livre entre o fim do
-    // texto do título (~x963) e o parafuso decorativo (~x1460), e quase
-    // toda a altura livre entre o subtítulo e o painel de knobs.
+    // texto do título (~x963) e o parafuso decorativo (~x1460). ATENÇÃO:
+    // nessa faixa de X (975-1450) não tem texto nenhum abaixo de y=15 -
+    // o "SMOOTH CLEAR CONTROL" só existe mais à esquerda, embaixo do
+    // título - então o espaço vertical de verdade disponível aqui vai de
+    // y=15 até a borda do painel de knobs em y=148, bem mais alto que a
+    // faixa estreita usada antes. Centralizado nesse vão real.
     constexpr float presetBarX0 = 0.639344f, presetBarX1 = 0.950820f;
-    constexpr float presetBarY0 = 0.117391f, presetBarY1 = 0.159783f;
+    constexpr float presetBarY0 = 0.059783f, presetBarY1 = 0.121739f;
 }
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
@@ -111,7 +115,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     // Duplo clique no logo NF reseta a janela pro tamanho default (mesmo
     // cálculo do setSize lá embaixo, no fim do construtor).
     content.onLogoDoubleClicked = [this] {
-        setSize(juce::roundToInt(nativeW * 0.45f), juce::roundToInt(nativeH * 0.45f));
+        setSize(juce::roundToInt(nativeW * 0.54f), juce::roundToInt(nativeH * 0.54f));
     };
 
     setLookAndFeel(&nfLookAndFeel);
@@ -199,7 +203,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     // Abre bem menor que o tamanho nativo (usuário reportou que 0.85 abria
     // grande demais dentro da DAW) - o resize continua livre depois, é só
     // o tamanho inicial que muda.
-    setSize(juce::roundToInt(nativeW * 0.45f), juce::roundToInt(nativeH * 0.45f));
+    setSize(juce::roundToInt(nativeW * 0.54f), juce::roundToInt(nativeH * 0.54f));
 }
 
 VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
