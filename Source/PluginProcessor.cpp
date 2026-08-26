@@ -189,6 +189,13 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         inPeak = juce::jmax(inPeak, buffer.getMagnitude(ch, 0, buffer.getNumSamples()));
     currentInputDb.store(juce::Decibels::gainToDecibels(inPeak, -60.0f));
 
+    // Clip detection do INPUT - direto do pico real (inPeak), não do valor
+    // suavizado que a GUI desenha. Só liga (nunca desliga sozinho aqui).
+    // >= (não só >): um sinal normalizado bem no teto (exatamente 0dBFS,
+    // sem "passar" tecnicamente) também precisa acender o LED.
+    if (inPeak >= 1.0f)
+        inputClipped.store(true);
+
     auto* left  = buffer.getWritePointer(0);
     auto* right = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : nullptr;
 
@@ -243,6 +250,10 @@ void VocalCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         outPeak = juce::jmax(outPeak, buffer.getMagnitude(ch, 0, buffer.getNumSamples()));
     currentOutputDb.store(juce::Decibels::gainToDecibels(outPeak, -60.0f));
+
+    // Clip detection do OUTPUT - mesma lógica do INPUT acima.
+    if (outPeak >= 1.0f)
+        outputClipped.store(true);
 
     // RTA/waveform: um ponto por bloco, normalizado 0..1 na mesma faixa dos
     // medidores (0 a -60 dB).

@@ -109,6 +109,14 @@ public:
     std::atomic<float> currentInputDb { -60.0f };
     std::atomic<float> currentOutputDb { -60.0f };
 
+    // Clip detection com latch: setado no audio thread (processBlock)
+    // sempre que o pico passar de 0dBFS, nunca desligado sozinho -
+    // continua true até a GUI resetar (clique no LED). Independente da
+    // animação/smoothing do medidor (que só afeta o valor "displayed" no
+    // LevelMeter) - aqui é sample-accurate, direto do pico real do bloco.
+    std::atomic<bool> inputClipped { false };
+    std::atomic<bool> outputClipped { false };
+
     // Buffer circular pro RTA/waveform da GUI: um ponto (0..1) por bloco de
     // áudio processado. Escrita só no audio thread, leitura só na GUI - sem
     // lock, só um índice atômico de escrita (dado "quase certo" já serve

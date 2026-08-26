@@ -68,8 +68,11 @@ namespace
     constexpr float grMeterX0 = 0.913443f, grMeterX1 = 0.944918f;
     constexpr float grMeterY0 = 0.696739f, grMeterY1 = 0.894565f;
 
-    constexpr float rtaX0 = 0.252459f, rtaX1 = 0.752787f;
-    constexpr float rtaY0 = 0.677174f, rtaY1 = 0.905435f;
+    // Buraco preto do EQ/RTA - Paulo recentralizou/moveu mais pra esquerda
+    // no faceplate mais recente. Medido de novo pixel a pixel: canto
+    // interno (343,613) até (1122,843).
+    constexpr float rtaX0 = 0.224918f, rtaX1 = 0.735738f;
+    constexpr float rtaY0 = 0.666304f, rtaY1 = 0.916304f;
 
     // Caixa FILTER (faceplate-6.png) - retângulo pontilhado único embaixo da
     // escrita "FILTER", abriga o botão PRE EQ. Coordenadas medidas pixel a
@@ -79,12 +82,10 @@ namespace
     constexpr float filterY0 = 0.747826f, filterY1 = 0.836957f;
 
     // Botão físico de BYPASS - fica na área vazia entre o gráfico
-    // Spectrum/RTA (termina em rtaX1) e a caixa GR (começa em
-    // grMeterX0). Mais estreito que antes (folga igual dos dois lados -
-    // a folga esquerda original ficou boa, só encolhemos a largura pra
-    // direita ficar com a mesma folga, em vez de colar na caixa GR).
-    // Altura sem mudança.
-    constexpr float bypassBtnX0 = 0.777377f, bypassBtnX1 = 0.862623f;
+    // Spectrum/RTA (termina em rtaX1) e a borda do painel da caixa GR
+    // (~x1330 no faceplate atual) - recentralizado depois que o buraco
+    // do EQ/RTA moveu pra esquerda. Altura sem mudança.
+    constexpr float bypassBtnX0 = 0.761311f, bypassBtnX1 = 0.846557f;
     constexpr float bypassBtnY0 = 0.768478f, bypassBtnY1 = 0.822826f;
 
     // Barra de presets ("‹ Nome › ☰") no topo, centralizada no vão livre
@@ -102,7 +103,7 @@ namespace
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     VocalCompressorAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p), grMeter(p),
-      inputMeter(p.currentInputDb), outputMeter(p.currentOutputDb),
+      inputMeter(p.currentInputDb, p.inputClipped), outputMeter(p.currentOutputDb, p.outputClipped),
       inputReadout(p.currentInputDb), outputReadout(p.currentOutputDb),
       rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
       eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0, p.spectrumAnalyzer),
@@ -115,7 +116,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     // Duplo clique no logo NF reseta a janela pro tamanho default (mesmo
     // cálculo do setSize lá embaixo, no fim do construtor).
     content.onLogoDoubleClicked = [this] {
-        setSize(juce::roundToInt(nativeW * 0.54f), juce::roundToInt(nativeH * 0.54f));
+        setSize(juce::roundToInt(nativeW * 0.648f), juce::roundToInt(nativeH * 0.648f));
     };
 
     setLookAndFeel(&nfLookAndFeel);
@@ -203,7 +204,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     // Abre bem menor que o tamanho nativo (usuário reportou que 0.85 abria
     // grande demais dentro da DAW) - o resize continua livre depois, é só
     // o tamanho inicial que muda.
-    setSize(juce::roundToInt(nativeW * 0.54f), juce::roundToInt(nativeH * 0.54f));
+    setSize(juce::roundToInt(nativeW * 0.648f), juce::roundToInt(nativeH * 0.648f));
 }
 
 VocalCompressorAudioProcessorEditor::~VocalCompressorAudioProcessorEditor()
@@ -300,7 +301,7 @@ void VocalCompressorAudioProcessorEditor::resized()
     {
         auto filterBox = fracRect(w, h, filterX0, filterY0, filterX1, filterY1);
         constexpr int sideMargin = 8;
-        constexpr float widthShrink = 0.85f;
+        constexpr float widthShrink = 0.72f;
         constexpr float heightShrink = 0.75f;
 
         int slotW = filterBox.getWidth() - sideMargin * 2;

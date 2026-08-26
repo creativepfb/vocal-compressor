@@ -56,7 +56,19 @@ public:
         ratio = juce::jmax(1.0f, ratioIn);
         isLimiterMode = RatioLimiter::isLimiterMode(ratio);
         attackCoef = calcCoef(juce::jmax(0.1f, attackMs));
-        releaseBlend = juce::jlimit(0.0f, 1.0f, releaseCharacterPercent / 100.0f);
+
+        // releaseCharacterPercent vem do parâmetro "release" (0% = FAST na
+        // UI, 100% = SLOW) - releaseBlend é a variável INTERNA usada em
+        // getAdaptiveRelease() como "o quanto pende pro lado rápido"
+        // (jmap(finalBlend, slowReleaseCoef, fastReleaseCoef): 0->slow,
+        // 1->fast). Por isso é o INVERSO do percentual do usuário: FAST
+        // (0%) precisa virar releaseBlend=1 (rápido), SLOW (100%) precisa
+        // virar releaseBlend=0 (lento). Antes disso NÃO estava invertido
+        // aqui - releaseBlend era só releaseCharacterPercent/100 direto,
+        // o que fazia FAST (0%) ficar sempre preso em slowReleaseCoef e
+        // SLOW (100%) conseguir alcançar fastReleaseCoef durante
+        // transientes - exatamente o comportamento invertido reportado.
+        releaseBlend = juce::jlimit(0.0f, 1.0f, 1.0f - (releaseCharacterPercent / 100.0f));
         driveAmount = juce::jmax(1.0f, driveIn);
         makeupGainLinear = dbToLinear(makeupDbIn);
         detectorHpfOn = detectorHpfOnIn;

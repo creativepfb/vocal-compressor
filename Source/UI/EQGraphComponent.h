@@ -516,17 +516,17 @@ private:
         return juce::String((int) freq) + " Hz";
     }
 
-    /** Rótulo EQ ON/OFF, sempre no canto superior esquerdo (ao lado do
+    /** Rótulo PRE EQ, sempre no canto superior esquerdo (ao lado do
         botão físico RESET, que é um componente filho de verdade - ver
         resetButton/resized()). Cinza quando o EQ está OFF, mesma lógica da
         curva/nós. */
     void drawHeader(juce::Graphics& g, juce::Rectangle<float> /*area*/)
     {
         auto labelBounds = juce::Rectangle<float>(resetButton.getRight() + 6.0f, (float) resetButton.getY(),
-                                                    90.0f, (float) resetButton.getHeight());
+                                                    80.0f, (float) resetButton.getHeight());
         g.setColour(isEqEnabled() ? juce::Colour(0xffff9a3c) : juce::Colour(0xff707078));
         g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
-        g.drawFittedText("EQ ON/OFF", labelBounds.getSmallestIntegerContainer(),
+        g.drawFittedText("PRE EQ", labelBounds.getSmallestIntegerContainer(),
                           juce::Justification::centredLeft, 1);
     }
 
