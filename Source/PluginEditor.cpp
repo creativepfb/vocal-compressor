@@ -87,15 +87,15 @@ namespace
     constexpr float bypassBtnX0 = 0.777377f, bypassBtnX1 = 0.862623f;
     constexpr float bypassBtnY0 = 0.768478f, bypassBtnY1 = 0.822826f;
 
-    // Barra de presets ("‹ Nome › ☰") no topo, à direita do título "NF
-    // VOCAL COMPRESSOR" - usa quase todo o vão livre entre o fim do
-    // texto do título (~x963) e o parafuso decorativo (~x1460). ATENÇÃO:
-    // nessa faixa de X (975-1450) não tem texto nenhum abaixo de y=15 -
-    // o "SMOOTH CLEAR CONTROL" só existe mais à esquerda, embaixo do
-    // título - então o espaço vertical de verdade disponível aqui vai de
-    // y=15 até a borda do painel de knobs em y=148, bem mais alto que a
-    // faixa estreita usada antes. Centralizado nesse vão real.
-    constexpr float presetBarX0 = 0.639344f, presetBarX1 = 0.950820f;
+    // Barra de presets ("‹ Nome › ☰") no topo, centralizada no vão livre
+    // entre o fim do texto do título "VOCAL COMPRESSOR" (~x889 no
+    // faceplate atual) e o parafuso decorativo (~x1460) - medido de novo
+    // a cada troca de faceplate, já que a posição do texto muda. Nessa
+    // faixa de X não tem texto nenhum abaixo de y=15 (o "SMOOTH CLEAR
+    // CONTROL" só existe mais à esquerda, embaixo do título), então o
+    // espaço vertical de verdade disponível vai até a borda do painel de
+    // knobs em y=148 - centralizado nesse vão real.
+    constexpr float presetBarX0 = 0.616393f, presetBarX1 = 0.924590f;
     constexpr float presetBarY0 = 0.059783f, presetBarY1 = 0.121739f;
 }
 

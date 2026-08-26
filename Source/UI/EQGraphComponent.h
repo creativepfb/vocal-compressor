@@ -205,7 +205,7 @@ private:
         return raw != nullptr ? raw->load() : 0.0f;
     }
 
-    /** Estado do botão PRE COMP (liga/desliga o EQ inteiro no áudio, ver
+    /** Estado do botão EQ ON/OFF (liga/desliga o EQ inteiro no áudio, ver
         PluginProcessor::processBlock) - usado pra desenhar a curva e os
         nós em cinza (aparência "desligada") quando ele estiver OFF. */
     bool isEqEnabled() const { return getReal("Enabled") > 0.5f; }
@@ -366,8 +366,8 @@ private:
     }
 
     /** Curva do Pré EQ (único filtro que existe agora) - glow duplo pra dar
-        destaque sobre o espectro/grade atrás dela. Quando o botão PRE COMP
-        está OFF (EQ bypassado no áudio de verdade), a curva fica cinza e
+        destaque sobre o espectro/grade atrás dela. Quando o botão EQ
+        ON/OFF está OFF (EQ bypassado no áudio de verdade), a curva fica cinza e
         discreta - visualmente "desligada", em vez de continuar laranja
         como se estivesse atuando. */
     void drawCurve(juce::Graphics& g, juce::Rectangle<float> area)
@@ -440,7 +440,7 @@ private:
         g.strokePath(line, juce::PathStrokeType(1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
-    /** Desenha os 5 nós arrastáveis. Quando o PRE COMP está OFF, todos os
+    /** Desenha os 5 nós arrastáveis. Quando o EQ ON/OFF está OFF, todos os
         nós (independente da cor original de cada banda) ficam cinza e
         mais apagados - mesma lógica "desligada" da curva, ver drawCurve(). */
     void drawNodes(juce::Graphics& g, juce::Rectangle<float> area)
@@ -516,17 +516,17 @@ private:
         return juce::String((int) freq) + " Hz";
     }
 
-    /** Rótulo PRE COMP, sempre no canto superior esquerdo (ao lado do botão
-        físico RESET, que é um componente filho de verdade - ver
+    /** Rótulo EQ ON/OFF, sempre no canto superior esquerdo (ao lado do
+        botão físico RESET, que é um componente filho de verdade - ver
         resetButton/resized()). Cinza quando o EQ está OFF, mesma lógica da
         curva/nós. */
     void drawHeader(juce::Graphics& g, juce::Rectangle<float> /*area*/)
     {
         auto labelBounds = juce::Rectangle<float>(resetButton.getRight() + 6.0f, (float) resetButton.getY(),
-                                                    80.0f, (float) resetButton.getHeight());
+                                                    90.0f, (float) resetButton.getHeight());
         g.setColour(isEqEnabled() ? juce::Colour(0xffff9a3c) : juce::Colour(0xff707078));
         g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
-        g.drawFittedText("PRE COMP", labelBounds.getSmallestIntegerContainer(),
+        g.drawFittedText("EQ ON/OFF", labelBounds.getSmallestIntegerContainer(),
                           juce::Justification::centredLeft, 1);
     }
 
