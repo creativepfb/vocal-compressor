@@ -115,6 +115,8 @@ public:
             manager.loadNext();
         else if (regions.menu.contains(pos))
             showMenu();
+        else if (regions.name.contains(pos))
+            showPresetPicker();
     }
 
 private:
@@ -137,6 +139,27 @@ private:
         area.removeFromRight(gap);
         r.name = area;
         return r;
+    }
+
+    /** Clicar no nome/meio da barra (não nas setas nem no menu) abre
+        direto uma lista com TODOS os presets disponíveis (Default +
+        salvos), com um check marcando o atual - atalho mais rápido que
+        entrar em "menu -> Load Preset" pra quem só quer trocar de preset. */
+    void showPresetPicker()
+    {
+        juce::PopupMenu menu;
+        auto all = manager.getAllEntriesIncludingDefault();
+        auto current = manager.getCurrentPresetName();
+
+        for (int i = 0; i < all.size(); ++i)
+            menu.addItem(i + 1, all[i], true, all[i] == current);
+
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this),
+                            [this, all](int result)
+        {
+            if (result >= 1 && result <= all.size())
+                manager.loadByName(all[result - 1]);
+        });
     }
 
     void showMenu()

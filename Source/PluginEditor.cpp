@@ -80,17 +80,19 @@ namespace
 
     // Botão físico de BYPASS - fica na área vazia entre o gráfico
     // Spectrum/RTA (termina em rtaX1) e a caixa GR (começa em
-    // grMeterX0), centralizado nesse vão tanto na horizontal quanto na
-    // vertical (mesma faixa Y da caixa GR). Mesmo tamanho de sempre
-    // (~170x50px nativos), só a posição mudou - saiu do topo direito.
-    constexpr float bypassBtnX0 = 0.777377f, bypassBtnX1 = 0.888853f;
+    // grMeterX0). Mais estreito que antes (folga igual dos dois lados -
+    // a folga esquerda original ficou boa, só encolhemos a largura pra
+    // direita ficar com a mesma folga, em vez de colar na caixa GR).
+    // Altura sem mudança.
+    constexpr float bypassBtnX0 = 0.777377f, bypassBtnX1 = 0.862623f;
     constexpr float bypassBtnY0 = 0.768478f, bypassBtnY1 = 0.822826f;
 
     // Barra de presets ("‹ Nome › ☰") no topo, à direita do título "NF
-    // VOCAL COMPRESSOR" - área medida pixel a pixel na imagem nativa
-    // (1525x920): livre de texto/parafuso entre (980,111) e (1440,146).
-    constexpr float presetBarX0 = 0.642623f, presetBarX1 = 0.944262f;
-    constexpr float presetBarY0 = 0.120652f, presetBarY1 = 0.158696f;
+    // VOCAL COMPRESSOR" - usa quase todo o vão livre entre o fim do
+    // texto do título (~x963) e o parafuso decorativo (~x1460), e quase
+    // toda a altura livre entre o subtítulo e o painel de knobs.
+    constexpr float presetBarX0 = 0.639344f, presetBarX1 = 0.950820f;
+    constexpr float presetBarY0 = 0.117391f, presetBarY1 = 0.159783f;
 }
 
 VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
@@ -213,9 +215,12 @@ void VocalCompressorAudioProcessorEditor::setupKnob(int index, juce::Slider& sli
 
     slider.onValueChange = [this, index] { updateValueLabel(index); };
 
+    // Duplo clique no valor verde digita o número direto - setValue já
+    // aplica o clamping certo (range do próprio slider) e dispara o
+    // SliderAttachment normalmente, como se tivesse girado o knob.
     auto& readout = valueLabels[index];
     readout.setFontHeight(knobValueFontSize);
-    readout.setInterceptsMouseClicks(false, false);
+    readout.onValueEntered = [&slider](float v) { slider.setValue((double) v, juce::sendNotificationSync); };
     content.addAndMakeVisible(readout);
 }
 
