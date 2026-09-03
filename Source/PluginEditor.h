@@ -11,6 +11,7 @@
 #include "UI/EQGraphComponent.h"
 #include "UI/PresetBarComponent.h"
 #include "UI/PresetNameDialog.h"
+#include "UI/AboutOverlay.h"
 #include "License/LicenseActivationComponent.h"
 
 /** Segura a faceplate + todos os controles, sempre no tamanho nativo da
@@ -97,6 +98,15 @@ private:
     // licenseOverlay: cobre a janela toda, escondido por padrão).
     PresetBarComponent presetBar;
     PresetNameDialog presetNameDialog;
+
+    // Tela About (versão, serial, licença, créditos) - aberta pelo item
+    // "About..." do menu hambúrguer da preset bar (ver
+    // PresetBarComponent::onAboutRequested), não por um botão próprio -
+    // ícone de engrenagem separado foi tentado antes e não agradou
+    // visualmente. Fica num filho direto do EDITOR, igual
+    // licenseOverlay/presetNameDialog, pra cobrir a janela toda com
+    // texto sempre nítido, sem distorção do AffineTransform de escala.
+    AboutOverlay aboutOverlay;
 
     // NF License System - overlay que cobre a GUI toda enquanto o
     // produto não estiver ativado (o áudio já fica mudo no processor

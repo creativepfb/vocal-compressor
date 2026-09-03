@@ -1,7 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 
-/** Gerencia os presets do NF Vocal Compressor: lista, salva, carrega e
+/** Gerencia os presets do NF Color Comp: lista, salva, carrega e
     navega (anterior/próximo) entre arquivos .xml guardados na pasta de
     presets do usuário.
 
@@ -54,7 +54,7 @@ public:
         auto dir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
                        .getChildFile("NF Plugins")
                        .getChildFile("presets")
-                       .getChildFile("NF Vocal Compressor");
+                       .getChildFile("NF Color Comp");
         dir.createDirectory();
         return dir;
     }

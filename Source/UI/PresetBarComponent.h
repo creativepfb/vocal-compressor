@@ -30,6 +30,11 @@ public:
         PresetNameDialog), essa classe não guarda referência pra ele. */
     std::function<void()> onSaveRequested;
 
+    /** Disparado quando o usuário escolhe "About..." no menu - mesmo
+        padrão do onSaveRequested acima, o editor decide o que fazer (ver
+        AboutOverlay). */
+    std::function<void()> onAboutRequested;
+
     void paint(juce::Graphics& g) override
     {
         auto bounds = getLocalBounds().toFloat().reduced(1.0f);
@@ -189,6 +194,9 @@ private:
         menu.addSeparator();
         menu.addItem(2, "Open Preset Folder");
 
+        menu.addSeparator();
+        menu.addItem(3, "About...");
+
         // Ancora especificamente embaixo do ícone hamburguer (lado
         // direito da barra), não do componente inteiro - senão o JUCE
         // decide a posição com base na largura toda da barra e o menu
@@ -205,6 +213,11 @@ private:
             else if (result == 2)
             {
                 manager.getPresetsDirectory().revealToUser();
+            }
+            else if (result == 3)
+            {
+                if (onAboutRequested)
+                    onAboutRequested();
             }
             else if (result >= 100)
             {

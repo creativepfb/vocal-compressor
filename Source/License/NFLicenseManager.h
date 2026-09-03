@@ -27,6 +27,14 @@ public:
         produto bate, e a máquina bate com o fingerprint atual. */
     bool isActivated() const { return activated; }
 
+    /** A chave que o usuário digitou na ativação (ex: "NFVC-XXXXX-...") -
+        guardada localmente só pra exibir na tela About, não é o que
+        valida a licença (isso continua sendo o certificate+signature
+        assinados pelo servidor, verificados em loadAndVerifyLocalCertificate).
+        Vazia se nunca foi ativado (ou se o certificado local é de antes
+        dessa chave começar a ser guardada). */
+    juce::String getLicenseKey() const { return cachedLicenseKey; }
+
     /** Dispara a ativação em background (não trava GUI/audio thread).
         `onResult` é chamado na message thread quando terminar. */
     void activateAsync (const juce::String& licenseKey,
@@ -108,7 +116,7 @@ private:
         if (! NFLicenseVerify::verify (certificate, signature))
             return { false, "Certificado recebido nao pode ser verificado." };
 
-        saveCertificateLocally (certificate, signature);
+        saveCertificateLocally (certificate, signature, licenseKey.trim());
         return { true, {} };
     }
 
@@ -140,14 +148,20 @@ private:
         if (certMachineId != MachineFingerprint::get().machineId)
             return;
 
+        // Campo extra, fora do certificate assinado - não participa da
+        // verificação acima, só cache local pra mostrar na tela About.
+        cachedLicenseKey = stored.getProperty ("licenseKey", "").toString();
+
         activated = true;
     }
 
-    void saveCertificateLocally (const juce::String& certificate, const juce::String& signature)
+    void saveCertificateLocally (const juce::String& certificate, const juce::String& signature,
+                                  const juce::String& licenseKeyToCache)
     {
         auto* obj = new juce::DynamicObject();
         obj->setProperty ("certificate", certificate);
         obj->setProperty ("signature", signature);
+        obj->setProperty ("licenseKey", licenseKeyToCache);
 
         auto file = getCertificateFile();
         file.getParentDirectory().createDirectory();
@@ -164,4 +178,5 @@ private:
 
     juce::String productCode;
     bool activated = false;
+    juce::String cachedLicenseKey;
 };

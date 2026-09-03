@@ -72,7 +72,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override { return "NF - Vocal Compressor"; }
+    const juce::String getName() const override { return "NF - Color Comp"; }
 
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }

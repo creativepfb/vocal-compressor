@@ -108,6 +108,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
       rtaDisplay(p.spectrumAnalyzer, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0),
       eqGraph(p.apvts, p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0, p.spectrumAnalyzer),
       presetBar(p.presetManager),
+      aboutOverlay(p.licenseManager),
       licenseOverlay(p.licenseManager)
 {
     content.faceplate = juce::ImageCache::getFromMemory(BinaryData::faceplate6_png, BinaryData::faceplate6_pngSize);
@@ -160,6 +161,7 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     content.addAndMakeVisible(eqGraph); // por cima do RTA, de proposito
 
     content.addAndMakeVisible(presetBar);
+    presetBar.onAboutRequested = [this] { aboutOverlay.show(); };
 
     auto& apvts = audioProcessor.apvts;
     thresholdAttach = std::make_unique<SliderAttachment>(apvts, "threshold", thresholdSlider);
@@ -194,6 +196,11 @@ VocalCompressorAudioProcessorEditor::VocalCompressorAudioProcessorEditor(
     presetNameDialog.onSave = [this](const juce::String& name) {
         audioProcessor.presetManager.savePreset(name);
     };
+
+    // Tela About: mesmo padrão de overlay de janela inteira, escondida
+    // até o item "About..." do menu hambúrguer ser clicado (ver
+    // presetBar.onAboutRequested acima).
+    addChildComponent(aboutOverlay);
 
     // Janela redimensionável, proporção travada na da faceplate.
     constrainer.setFixedAspectRatio((double) nativeW / (double) nativeH);
@@ -323,11 +330,13 @@ void VocalCompressorAudioProcessorEditor::resized()
 
     presetBar.setBounds(fracRect(w, h, presetBarX0, presetBarY0, presetBarX1, presetBarY1));
 
-    // Popup de licença e diálogo de salvar preset cobrem a JANELA inteira
-    // (não a "content" nativa) - ficam direto em filhos do editor, fora do
-    // transform de escala (senão o texto digitado ficaria distorcido).
-    // Cada um só escurece o fundo e centraliza um cartão pequeno quando
-    // visível - o resto do plugin continua visível por baixo.
+    // Popup de licença, diálogo de salvar preset e tela About cobrem a
+    // JANELA inteira (não a "content" nativa) - ficam direto em filhos
+    // do editor, fora do transform de escala (senão o texto ficaria
+    // distorcido). Cada um só escurece o fundo e centraliza um cartão
+    // pequeno quando visível - o resto do plugin continua visível por
+    // baixo.
     licenseOverlay.setBounds(getLocalBounds());
     presetNameDialog.setBounds(getLocalBounds());
+    aboutOverlay.setBounds(getLocalBounds());
 }

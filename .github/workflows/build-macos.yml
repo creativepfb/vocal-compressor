@@ -24,18 +24,26 @@ jobs:
       - name: Package ZIP (teste rápido, sem instalador)
         run: |
           mkdir -p dist
-          cp -R "build/VocalCompressor_artefacts/Release/VST3/NF - Vocal Compressor.vst3" dist/
-          cp -R "build/VocalCompressor_artefacts/Release/AU/NF - Vocal Compressor.component" dist/
-          cp -R "build/VocalCompressor_artefacts/Release/Standalone/NF - Vocal Compressor.app" dist/
+          cp -R "build/VocalCompressor_artefacts/Release/VST3/NF - Color Comp.vst3" dist/
+          cp -R "build/VocalCompressor_artefacts/Release/AU/NF - Color Comp.component" dist/
+          cp -R "build/VocalCompressor_artefacts/Release/Standalone/NF - Color Comp.app" dist/
           ls -la dist
           (cd dist && zip -r -y "../VocalCompressor-macOS.zip" .)
 
       - name: Build installer (.pkg instalando nos 3 destinos + .dmg)
         run: |
-          mkdir -p pkgroot/vst3 pkgroot/au pkgroot/app
-          cp -R "build/VocalCompressor_artefacts/Release/VST3/NF - Vocal Compressor.vst3" pkgroot/vst3/
-          cp -R "build/VocalCompressor_artefacts/Release/AU/NF - Vocal Compressor.component" pkgroot/au/
-          cp -R "build/VocalCompressor_artefacts/Release/Standalone/NF - Vocal Compressor.app" pkgroot/app/
+          mkdir -p pkgroot/vst3 pkgroot/au pkgroot/app pkgroot/docs
+          cp -R "build/VocalCompressor_artefacts/Release/VST3/NF - Color Comp.vst3" pkgroot/vst3/
+          cp -R "build/VocalCompressor_artefacts/Release/AU/NF - Color Comp.component" pkgroot/au/
+          cp -R "build/VocalCompressor_artefacts/Release/Standalone/NF - Color Comp.app" pkgroot/app/
+
+          # Manual em PDF - local FIXO e compartilhado (Application Support,
+          # não dentro de nenhum formato específico), porque o VST3/AU/AAX/
+          # Standalone instalam em pastas diferentes e o botão "Manual" da
+          # tela About (ver Source/UI/AboutOverlay.h) precisa achar o
+          # arquivo não importa qual formato esteja rodando.
+          mkdir -p "pkgroot/docs/Library/Application Support/NF Plugins/Color Comp"
+          cp "installer/docs/NF-Color-Comp-Manual-PT.pdf" "pkgroot/docs/Library/Application Support/NF Plugins/Color Comp/"
 
           pkgbuild --root pkgroot/vst3 --install-location "/Library/Audio/Plug-Ins/VST3" \
             --identifier com.nf.vocalcompressor.vst3 --version 1.0 vst3.pkg
@@ -43,33 +51,38 @@ jobs:
             --identifier com.nf.vocalcompressor.au --version 1.0 au.pkg
           pkgbuild --root pkgroot/app --install-location "/Applications" \
             --identifier com.nf.vocalcompressor.app --version 1.0 app.pkg
+          pkgbuild --root pkgroot/docs --install-location "/" \
+            --identifier com.nf.vocalcompressor.docs --version 1.0 docs.pkg
 
           cat > distribution.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <installer-gui-script minSpecVersion="1">
-              <title>NF - Vocal Compressor</title>
+              <title>NF - Color Comp</title>
               <options customize="never" require-scripts="false"/>
               <choices-outline>
                   <line choice="default">
                       <line choice="vst3"/>
                       <line choice="au"/>
                       <line choice="app"/>
+                      <line choice="docs"/>
                   </line>
               </choices-outline>
               <choice id="default"/>
               <choice id="vst3" visible="false"><pkg-ref id="com.nf.vocalcompressor.vst3"/></choice>
               <choice id="au" visible="false"><pkg-ref id="com.nf.vocalcompressor.au"/></choice>
               <choice id="app" visible="false"><pkg-ref id="com.nf.vocalcompressor.app"/></choice>
+              <choice id="docs" visible="false"><pkg-ref id="com.nf.vocalcompressor.docs"/></choice>
               <pkg-ref id="com.nf.vocalcompressor.vst3" version="1.0" onConclusion="none">vst3.pkg</pkg-ref>
               <pkg-ref id="com.nf.vocalcompressor.au" version="1.0" onConclusion="none">au.pkg</pkg-ref>
               <pkg-ref id="com.nf.vocalcompressor.app" version="1.0" onConclusion="none">app.pkg</pkg-ref>
+              <pkg-ref id="com.nf.vocalcompressor.docs" version="1.0" onConclusion="none">docs.pkg</pkg-ref>
           </installer-gui-script>
           EOF
 
-          productbuild --distribution distribution.xml --package-path . "NF - Vocal Compressor Installer.pkg"
+          productbuild --distribution distribution.xml --package-path . "NF - Color Comp Installer.pkg"
 
           mkdir -p dmg_root
-          cp "NF - Vocal Compressor Installer.pkg" dmg_root/
+          cp "NF - Color Comp Installer.pkg" dmg_root/
 
           # Ícone da marca NF Plugins no volume do DMG (o que aparece quando
           # a pessoa monta o .dmg) e no próprio arquivo .dmg (o que aparece
@@ -94,7 +107,7 @@ jobs:
             SetFile -c icnC dmg_root/.VolumeIcon.icns || true
           fi
 
-          hdiutil create -volname "NF - Vocal Compressor" -srcfolder dmg_root -ov -format UDZO VocalCompressor-macOS.dmg
+          hdiutil create -volname "NF - Color Comp" -srcfolder dmg_root -ov -format UDZO VocalCompressor-macOS.dmg
 
           if [ -f icon.icns ]; then
             DeRez -only icns icon.icns > icon.rsrc || true
@@ -123,7 +136,7 @@ jobs:
           cp "VocalCompressor-macOS.dmg" "vocal-compressor-macos.dmg"
           gh release view vocal-compressor --repo creativepfb/nf-releases >/dev/null 2>&1 || \
             gh release create vocal-compressor --repo creativepfb/nf-releases \
-              --title "NF - Vocal Compressor" \
+              --title "NF - Color Comp" \
               --notes "Instaladores publicados automaticamente pelo CI - sempre a versao mais recente."
           gh release upload vocal-compressor \
             "vocal-compressor-macos.dmg" \

@@ -4,10 +4,10 @@
 ; Os caminhos em [Files] são relativos a esta pasta (installer\windows\),
 ; por isso sobem dois níveis (..\..\) até a raiz do repo / pasta build\.
 
-#define MyAppName "NF - Vocal Compressor"
+#define MyAppName "NF - Color Comp"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "NF Plugins"
-#define MyAppExeName "NF - Vocal Compressor.exe"
+#define MyAppExeName "NF - Color Comp.exe"
 
 [Setup]
 ; GUID fixo do app - NÃO trocar entre versões, é o que permite o Windows
@@ -32,7 +32,7 @@ WizardStyle=modern
 UninstallDisplayIcon={app}\{#MyAppExeName}
 DisableWelcomePage=no
 ; Ícone do próprio arquivo .exe do instalador (o que aparece quando a
-; pessoa baixa pelo navegador) - logo do produto (NF Vocal Compressor).
+; pessoa baixa pelo navegador) - logo do produto (NF Color Comp).
 SetupIconFile=icon\nf-plugins.ico
 ; Imagem grande do assistente (lado esquerdo das páginas de boas-vindas/
 ; conclusão) - mesmo logo do produto, centralizado num fundo roxo/preto
@@ -44,7 +44,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 ; Standalone (app de verdade, com ícone/atalho)
-Source: "..\..\build\VocalCompressor_artefacts\Release\Standalone\NF - Vocal Compressor.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\build\VocalCompressor_artefacts\Release\Standalone\NF - Color Comp.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; VST3 - pasta padrão do Windows pra plugins VST3 de 64 bits, agrupado
 ; numa subpasta "NF Plugins" (mesmo padrão usado no Program Files/Menu
@@ -52,10 +52,19 @@ Source: "..\..\build\VocalCompressor_artefacts\Release\Standalone\NF - Vocal Com
 ; um "bundle" (pasta com subpastas dentro - Contents\x86_64-win\ etc,
 ; formato exigido pelo próprio padrão VST3, não dá pra achatar), por
 ; isso recursesubdirs.
-Source: "..\..\build\VocalCompressor_artefacts\Release\VST3\NF - Vocal Compressor.vst3\*"; DestDir: "{commoncf64}\VST3\NF Plugins\NF - Vocal Compressor.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\build\VocalCompressor_artefacts\Release\VST3\NF - Color Comp.vst3\*"; DestDir: "{commoncf64}\VST3\NF Plugins\NF - Color Comp.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+; Manual em PDF - fica num local FIXO e compartilhado (ProgramData, não
+; dentro de nenhum formato específico), porque o VST3/AAX/Standalone são
+; instalados em pastas diferentes e o botão "Manual" da tela About (ver
+; Source/UI/AboutOverlay.h) precisa achar o arquivo não importa qual
+; formato esteja rodando. É só um PDF estático - não afeta o binário do
+; plugin nem carrega em memória até a pessoa clicar.
+Source: "..\docs\NF-Color-Comp-Manual-PT.pdf"; DestDir: "{commonappdata}\NF Plugins\Color Comp"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\Manual (PT)"; Filename: "{commonappdata}\NF Plugins\Color Comp\NF-Color-Comp-Manual-PT.pdf"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
@@ -65,7 +74,8 @@ Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDesc
 [UninstallDelete]
 ; Garante que a pasta inteira do VST3 (bundle) some no uninstall, não só
 ; os arquivos que o Inno rastreou individualmente.
-Type: filesandordirs; Name: "{commoncf64}\VST3\NF Plugins\NF - Vocal Compressor.vst3"
+Type: filesandordirs; Name: "{commoncf64}\VST3\NF Plugins\NF - Color Comp.vst3"
+Type: filesandordirs; Name: "{commonappdata}\NF Plugins\Color Comp"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Abrir {#MyAppName} agora"; Flags: nowait postinstall skipifsilent
